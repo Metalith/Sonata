@@ -1,4 +1,6 @@
 use crate::utility;
+use crate::VulkanObject;
+
 use ash::{
     vk,
     Entry,
@@ -8,6 +10,7 @@ use ash::{
 
 use std::os::raw::c_void;
 use std::ffi::CStr;
+use std::ffi::CString;
 
 pub struct DebugMessenger {
     debug_messenger : vk::DebugUtilsMessengerEXT,
@@ -22,8 +25,7 @@ impl DebugMessenger {
 
         let create_info = Self::populate_debug_messenger_create_info();
 
-        let env_enable = std::env::var("WIND_VK_VALIDATION").is_ok();
-        let validation_enabled: bool  = if env_enable { std::env::var("WIND_VK_VALIDATION").unwrap().parse().unwrap() } else { false };
+        let validation_enabled: bool  = if std::env::var("WIND_VK_VALIDATION").is_ok() { std::env::var("WIND_VK_VALIDATION").unwrap().parse().unwrap() } else { false };
 
         let utils_messenger = unsafe {
             if validation_enabled {
@@ -77,6 +79,22 @@ impl DebugMessenger {
         vec!["VK_LAYER_KHRONOS_validation"]
     }
 
+    pub fn get_validation_layers_vk() -> (Vec<CString>, Vec<*const i8>) {
+        let layers = Self::get_validation_layers();
+
+        let layer_names = layers
+            .iter()
+            .map(|layer_name| CString::new(*layer_name).expect("Failed to build CString"))
+            .collect::<Vec<CString>>();
+
+        let layer_ptrs: Vec<*const i8> = layer_names
+            .iter()
+            .map(|layer_name| layer_name.as_ptr())
+            .collect();
+
+        (layer_names, layer_ptrs)
+    }
+
     pub fn populate_debug_messenger_create_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
         vk::DebugUtilsMessengerCreateInfoEXT {
             message_severity : vk::DebugUtilsMessageSeverityFlagsEXT::ERROR | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE,
@@ -85,10 +103,20 @@ impl DebugMessenger {
             ..Default::default()
         }
     }
+}
 
-    pub unsafe fn cleanup(&self) {
+impl VulkanObject for DebugMessenger {
+    type Object = vk::DebugUtilsMessengerEXT;
+
+    fn vulkan_object(&self) -> &Self::Object {
+        &self.debug_messenger
+    }
+
+    fn cleanup(&self) {
         if self.validation_enabled {
-            self.debug_loader.destroy_debug_utils_messenger(self.debug_messenger, None);
+            unsafe {
+                self.debug_loader.destroy_debug_utils_messenger(self.debug_messenger, None);
+            }
         }
     }
 }

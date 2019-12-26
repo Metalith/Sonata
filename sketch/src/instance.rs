@@ -24,8 +24,7 @@ pub struct Instance {
 
 impl Instance {
     pub fn new(win : &Window, entry: &Entry) -> Self {
-        let env_enable = std::env::var("WIND_VK_VALIDATION").is_ok();
-        let validation_enabled: bool  = if env_enable { std::env::var("WIND_VK_VALIDATION").unwrap().parse().unwrap() } else { false };
+        let validation_enabled: bool  = if std::env::var("WIND_VK_VALIDATION").is_ok() { std::env::var("WIND_VK_VALIDATION").unwrap().parse().unwrap() } else { false };
 
         if validation_enabled && !DebugMessenger::check_validation_layer_support(&entry) {
             panic!("Validation layers requested not supported");
@@ -42,15 +41,7 @@ impl Instance {
             ..Default::default()
         };
 
-        let layers: Vec<CString> = DebugMessenger::get_validation_layers()
-            .iter()
-            .map(|layer_name| CString::new(*layer_name).unwrap())
-            .collect();
-
-        let validation_layers: Vec<*const i8> = layers
-            .iter()
-            .map(|layer_name| layer_name.as_ptr())
-            .collect();
+        let (_names, validation_layers)= DebugMessenger::get_validation_layers_vk();
 
         let mut extensions = Self::required_extension_names();
         if validation_enabled {
@@ -78,25 +69,25 @@ impl Instance {
         }
     }
 
-    pub fn required_extension_names() -> Vec<*const i8> {
+    fn required_extension_names() -> Vec<*const i8> {
         vec![
             Surface::name().as_ptr(),
             Win32Surface::name().as_ptr()
         ]
-    }
-
-    pub fn cleanup(&self) {
-        unsafe {
-            self.debug_messenger.cleanup();
-            self.instance.destroy_instance(None);
-        }
     }
 }
 
 impl VulkanObject for Instance {
     type Object = ash::Instance;
 
-    fn vulkan_object(&self) -> &ash::Instance {
+    fn vulkan_object(&self) -> &Self::Object {
         &self.instance
+    }
+
+    fn cleanup(&self) {
+        unsafe {
+            self.debug_messenger.cleanup();
+            self.instance.destroy_instance(None);
+        }
     }
 }

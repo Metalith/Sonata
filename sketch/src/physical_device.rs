@@ -1,4 +1,5 @@
-use crate::queue_family::QueueFamily;   
+use crate::queue_family::QueueFamily;
+use crate::VulkanObject; 
 
 use ash::{
     vk,
@@ -10,7 +11,6 @@ pub struct PhysicalDevice {
     physical_device: vk::PhysicalDevice,
     queue_families: Vec<QueueFamily>,   
     graphics_index: u32
-
 }
 
 impl PhysicalDevice {
@@ -64,4 +64,22 @@ impl PhysicalDevice {
             None => Err("Graphics queue not present")
         }
     }
+
+    pub fn graphics_index(&self) -> &u32 {
+        &self.graphics_index
+    }
+
+    pub fn queue_families(&self) -> &Vec<QueueFamily> {
+        &self.queue_families
+    }
+}
+
+impl VulkanObject for PhysicalDevice {
+    type Object = vk::PhysicalDevice;
+
+    fn vulkan_object(&self) -> &Self::Object {
+        &self.physical_device
+    }
+
+    fn cleanup(&self) {}
 }
