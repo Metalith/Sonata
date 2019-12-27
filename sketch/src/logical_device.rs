@@ -12,6 +12,8 @@ use ash::{
 
 pub struct LogicalDevice {
     logical_device: Device,
+    graphics_queue: vk::Queue,
+    present_queue: vk::Queue,
 }
 
 impl LogicalDevice {
@@ -39,10 +41,14 @@ impl LogicalDevice {
             .enabled_layer_names(if validation_enabled { &validation_layers } else { &[] })
             .build();
 
-        let device = unsafe { instance.create_device(*physical_device.vulkan_object(), &create_info, None).expect("Failed to create logical device") };
+        let device: Device = unsafe { instance.create_device(*physical_device.vulkan_object(), &create_info, None).expect("Failed to create logical device") };
+        let graphics_queue = unsafe { device.get_device_queue(*physical_device.graphics_index(), 0) };
+        let present_queue = unsafe { device.get_device_queue(*physical_device.present_index(), 0) };
 
         LogicalDevice {
-            logical_device: device
+            logical_device: device,
+            graphics_queue: graphics_queue,
+            present_queue: present_queue
         }
     }
 

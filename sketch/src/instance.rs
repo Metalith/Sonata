@@ -23,7 +23,7 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn new(win : &Window, entry: &Entry) -> Self {
+    pub fn new(entry: &Entry) -> Self {
         let validation_enabled: bool  = if std::env::var("WIND_VK_VALIDATION").is_ok() { std::env::var("WIND_VK_VALIDATION").unwrap().parse().unwrap() } else { false };
 
         if validation_enabled && !DebugMessenger::check_validation_layer_support(&entry) {
