@@ -1,31 +1,27 @@
 use crate::utility;
+use crate::Renderer;
 use crate::VulkanObject;
 
-use ash::{
-    vk,
-    Entry,
-    Instance,
-    version::EntryV1_0
-};
+use ash::{version::EntryV1_0, vk, Entry, Instance};
 
-use std::os::raw::c_void;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::os::raw::c_void;
 
 pub struct DebugMessenger {
-    debug_messenger : vk::DebugUtilsMessengerEXT,
-    debug_loader : ash::extensions::ext::DebugUtils,
-    validation_enabled: bool
+    debug_messenger: vk::DebugUtilsMessengerEXT,
+    debug_loader: ash::extensions::ext::DebugUtils,
+    validation_enabled: bool,
 }
 
 impl DebugMessenger {
-    pub fn new(entry : &Entry, instance: &Instance) -> Self {
+    pub fn new(entry: &Entry, instance: &Instance) -> Self {
         // TODO: Disable this module if not debugging
         let loader = ash::extensions::ext::DebugUtils::new(entry, instance);
 
         let create_info = Self::populate_debug_messenger_create_info();
 
-        let validation_enabled: bool  = if std::env::var("WIND_VK_VALIDATION").is_ok() { std::env::var("WIND_VK_VALIDATION").unwrap().parse().unwrap() } else { false };
+        let validation_enabled = utility::validation_enabled();
 
         let utils_messenger = unsafe {
             if validation_enabled {
@@ -38,11 +34,11 @@ impl DebugMessenger {
         DebugMessenger {
             debug_messenger: utils_messenger,
             debug_loader: loader,
-            validation_enabled: validation_enabled
+            validation_enabled: validation_enabled,
         }
     }
 
-    pub fn check_validation_layer_support(entry : &Entry) -> bool {
+    pub fn check_validation_layer_support(entry: &Entry) -> bool {
         let available_layers = entry.enumerate_instance_layer_properties().unwrap();
         let required_layers = Self::get_validation_layers();
 
@@ -61,7 +57,7 @@ impl DebugMessenger {
             let mut layer_found = false;
 
             for layer in available_layers.iter() {
-                let layer_name =  utility::vk_to_str(&layer.layer_name);
+                let layer_name = utility::vk_to_str(&layer.layer_name);
                 if required_layer_name == layer_name {
                     layer_found = true;
                 }
@@ -82,23 +78,17 @@ impl DebugMessenger {
     pub fn get_validation_layers_vk() -> (Vec<CString>, Vec<*const i8>) {
         let layers = Self::get_validation_layers();
 
-        let layer_names = layers
-            .iter()
-            .map(|layer_name| CString::new(*layer_name).expect("Failed to build CString"))
-            .collect::<Vec<CString>>();
+        let layer_names = layers.iter().map(|layer_name| CString::new(*layer_name).expect("Failed to build CString")).collect::<Vec<CString>>();
 
-        let layer_ptrs: Vec<*const i8> = layer_names
-            .iter()
-            .map(|layer_name| layer_name.as_ptr())
-            .collect();
+        let layer_ptrs: Vec<*const i8> = layer_names.iter().map(|layer_name| layer_name.as_ptr()).collect();
 
         (layer_names, layer_ptrs)
     }
 
     pub fn populate_debug_messenger_create_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
         vk::DebugUtilsMessengerCreateInfoEXT {
-            message_severity : vk::DebugUtilsMessageSeverityFlagsEXT::ERROR | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE,
-            message_type : vk::DebugUtilsMessageTypeFlagsEXT::GENERAL | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
+            message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::ERROR | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE,
+            message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
             pfn_user_callback: Some(vulkan_debug_utils_callback),
             ..Default::default()
         }
@@ -112,7 +102,7 @@ impl VulkanObject for DebugMessenger {
         &self.debug_messenger
     }
 
-    fn cleanup(&self) {
+    fn cleanup(&self, _renderer: &Renderer) {
         if self.validation_enabled {
             unsafe {
                 self.debug_loader.destroy_debug_utils_messenger(self.debug_messenger, None);
@@ -121,8 +111,7 @@ impl VulkanObject for DebugMessenger {
     }
 }
 
-unsafe extern "system"
-fn vulkan_debug_utils_callback(
+unsafe extern "system" fn vulkan_debug_utils_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
     message_type: vk::DebugUtilsMessageTypeFlagsEXT,
     p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,

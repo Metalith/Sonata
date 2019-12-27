@@ -1,32 +1,29 @@
 use crate::queue_family::QueueFamily;
-use crate::VulkanObject; 
+use crate::utility;
+use crate::Renderer;
 use crate::Surface;
+use crate::SwapChain;
+use crate::VulkanObject;
 
-use ash::{
-    vk,
-    Instance,
-    version::InstanceV1_0
-};
+use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk, Instance};
+
+use std::ffi::CStr;
 
 pub struct PhysicalDevice {
     physical_device: vk::PhysicalDevice,
-    queue_families: Vec<QueueFamily>,   
     graphics_index: u32,
-    present_index: u32
+    present_index: u32,
 }
 
 impl PhysicalDevice {
     pub fn new(instance: &Instance, surface: &Surface) -> Self {
         let physical_device = Self::pick_suitable_device(instance, surface);
-        let queue_families = QueueFamily::all(instance, physical_device);
         let (graphics_index, present_index) = Self::get_queue_indices(instance, physical_device, surface).unwrap();
-
 
         PhysicalDevice {
             physical_device: physical_device,
-            queue_families: queue_families,
             graphics_index: graphics_index,
-            present_index: present_index
+            present_index: present_index,
         }
     }
 
@@ -44,12 +41,19 @@ impl PhysicalDevice {
 
         match result {
             None => panic!("No suitable physical device"),
-            Some(device) => device
+            Some(device) => device,
         }
     }
 
     fn is_device_suitable(instance: &Instance, device: vk::PhysicalDevice, surface: &Surface) -> bool {
-        Self::get_queue_indices(instance, device, surface).is_ok()
+        let extensions_supported = Self::check_device_extension_support(instance, device);
+        let mut swapchain_adequate = false;
+        if extensions_supported {
+            let swapchain_support = SwapChain::query_support(device, surface);
+            swapchain_adequate = !swapchain_support.formats.is_empty() && !swapchain_support.present_modes.is_empty();
+        }
+
+        Self::get_queue_indices(instance, device, surface).is_ok() && extensions_supported && swapchain_adequate
     }
 
     fn get_queue_indices(instance: &Instance, device: vk::PhysicalDevice, surface: &Surface) -> Result<(u32, u32), &'static str> {
@@ -64,20 +68,43 @@ impl PhysicalDevice {
                 }
 
                 if present_index.is_none() && unsafe { surface.get_loader().get_physical_device_surface_support(device, queue_family.index, *surface.vulkan_object()) } {
-                   present_index = Some(queue_family.index)
+                    present_index = Some(queue_family.index)
                 }
             }
         }
 
         match graphics_index {
-            Some(g_index) => {
-                match present_index {
-                    Some(p_index) => Ok((g_index, p_index)),
-                    None => Err("Present queue not present")
-                }
+            Some(g_index) => match present_index {
+                Some(p_index) => Ok((g_index, p_index)),
+                None => Err("Present queue not present"),
             },
-            None => Err("Graphics queue not present")
+            None => Err("Graphics queue not present"),
         }
+    }
+
+    fn check_device_extension_support(instance: &Instance, device: vk::PhysicalDevice) -> bool {
+        let available_extensions = unsafe { instance.enumerate_device_extension_properties(device).unwrap() };
+        let required_extensions: Vec<&str> = Self::required_extension_names().iter().map(|name| unsafe { CStr::from_ptr(*name).to_str().unwrap() }).collect();
+
+        debug!("Device Extensions Available:");
+        for extension in available_extensions.iter() {
+            let name = utility::vk_to_str(&extension.extension_name);
+            debug!("\t{}", name);
+        }
+
+        let mut result = true;
+
+        for &required_extension_name in required_extensions.iter() {
+            if result {
+                result = available_extensions.iter().any(|extension| utility::vk_to_str(&extension.extension_name) == required_extension_name)
+            }
+        }
+
+        result
+    }
+
+    pub fn required_extension_names() -> Vec<*const i8> {
+        vec![Swapchain::name().as_ptr()]
     }
 
     pub fn graphics_index(&self) -> &u32 {
@@ -86,10 +113,6 @@ impl PhysicalDevice {
 
     pub fn present_index(&self) -> &u32 {
         &self.present_index
-    }
-
-    pub fn queue_families(&self) -> &Vec<QueueFamily> {
-        &self.queue_families
     }
 }
 
@@ -100,5 +123,5 @@ impl VulkanObject for PhysicalDevice {
         &self.physical_device
     }
 
-    fn cleanup(&self) {}
+    fn cleanup(&self, _renderer: &Renderer) {}
 }

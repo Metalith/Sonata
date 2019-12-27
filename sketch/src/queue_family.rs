@@ -1,10 +1,10 @@
-use ash::{vk, Instance, version::InstanceV1_0};
+use ash::{version::InstanceV1_0, vk, Instance};
 
 pub struct QueueFamily {
     pub index: u32,
     pub count: u32,
     pub flags: vk::QueueFlags,
-    pub priority: f32
+    pub priority: f32,
 }
 
 impl QueueFamily {
@@ -26,7 +26,7 @@ impl QueueFamily {
             index: i as u32,
             count: family.queue_count,
             flags: family.queue_flags,
-            priority: 1.0f32
+            priority: 1.0f32,
         }
     }
 }

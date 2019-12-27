@@ -1,14 +1,15 @@
-use crate::VulkanObject;
-use crate::PhysicalDevice;
+use crate::utility;
 use crate::DebugMessenger;
+use crate::PhysicalDevice;
+use crate::Renderer;
+use crate::VulkanObject;
 
 use ash::{
-    vk,
-    Instance,
-    Device,
-    extensions::khr::Swapchain,
-    version::{InstanceV1_0, DeviceV1_0}
+    version::{DeviceV1_0, InstanceV1_0},
+    vk, Device, Instance,
 };
+
+use std::collections::HashSet;
 
 pub struct LogicalDevice {
     logical_device: Device,
@@ -18,27 +19,22 @@ pub struct LogicalDevice {
 
 impl LogicalDevice {
     pub fn new(instance: &Instance, physical_device: &PhysicalDevice) -> Self {
-        let validation_enabled: bool  = if std::env::var("WIND_VK_VALIDATION").is_ok() { std::env::var("WIND_VK_VALIDATION").unwrap().parse().unwrap() } else { false };
-
-        let queue_families = [physical_device.graphics_index()];
+        let queue_families: HashSet<&u32> = vec![physical_device.graphics_index(), physical_device.present_index()].into_iter().collect();
         let mut queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = Vec::new();
 
         let priority = [1f32];
         for &&queue_index in queue_families.iter() {
-            queue_create_infos.push(vk::DeviceQueueCreateInfo::builder()
-                .queue_family_index(queue_index)
-                .queue_priorities(&priority)
-                .build());
+            queue_create_infos.push(vk::DeviceQueueCreateInfo::builder().queue_family_index(queue_index).queue_priorities(&priority).build());
         }
 
         let device_features = vk::PhysicalDeviceFeatures::default();
-        let extensions = Self::required_extension_names();
-        let (_names, validation_layers)= DebugMessenger::get_validation_layers_vk();
+        let extensions = PhysicalDevice::required_extension_names();
+        let (_names, validation_layers) = DebugMessenger::get_validation_layers_vk();
         let create_info = vk::DeviceCreateInfo::builder()
             .queue_create_infos(&queue_create_infos)
             .enabled_features(&device_features)
             .enabled_extension_names(&extensions)
-            .enabled_layer_names(if validation_enabled { &validation_layers } else { &[] })
+            .enabled_layer_names(if utility::validation_enabled() { &validation_layers } else { &[] })
             .build();
 
         let device: Device = unsafe { instance.create_device(*physical_device.vulkan_object(), &create_info, None).expect("Failed to create logical device") };
@@ -48,14 +44,8 @@ impl LogicalDevice {
         LogicalDevice {
             logical_device: device,
             graphics_queue: graphics_queue,
-            present_queue: present_queue
+            present_queue: present_queue,
         }
-    }
-
-    fn required_extension_names() -> Vec<*const i8> {
-        vec![
-            Swapchain::name().as_ptr()
-        ]
     }
 }
 
@@ -66,7 +56,7 @@ impl VulkanObject for LogicalDevice {
         &self.logical_device
     }
 
-    fn cleanup(&self) {
+    fn cleanup(&self, _renderer: &Renderer) {
         unsafe {
             self.logical_device.destroy_device(None);
         }
