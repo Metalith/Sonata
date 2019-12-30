@@ -8,6 +8,9 @@ use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Instance};
 pub struct SwapChain {
     swapchain_loader: khr::Swapchain,
     swapchain: vk::SwapchainKHR,
+    surface_format: vk::SurfaceFormatKHR,
+    extent: vk::Extent2D,
+    present_mode: vk::PresentModeKHR,
     images: Vec<vk::Image>,
     image_views: Vec<vk::ImageView>,
 }
@@ -83,6 +86,9 @@ impl SwapChain {
         SwapChain {
             swapchain_loader: swapchain_loader,
             swapchain: swapchain,
+            surface_format: surface_format,
+            extent: extent,
+            present_mode: present_mode,
             images: images,
             image_views: image_views,
         }
@@ -126,6 +132,18 @@ impl SwapChain {
             }
         }
     }
+
+    pub fn extent(&self) -> &vk::Extent2D {
+        &self.extent
+    }
+    
+    pub fn surface_format(&self) -> &vk::SurfaceFormatKHR {
+        &self.surface_format
+    }
+
+    pub fn present_mode(&self) -> &vk::PresentModeKHR {
+        &self.present_mode
+    }
 }
 
 impl VulkanObject for SwapChain {
@@ -135,10 +153,10 @@ impl VulkanObject for SwapChain {
         &self.swapchain
     }
 
-    fn cleanup(&self, renderer: &Renderer) {
+    fn cleanup(&self, _renderer: &Renderer) {
         unsafe {
             for &image_view in self.image_views.iter() {
-                renderer.logical_device.vulkan_object().destroy_image_view(image_view, None);
+                _renderer.logical_device.vulkan_object().destroy_image_view(image_view, None);
             }
             self.swapchain_loader.destroy_swapchain(self.swapchain, None);
         }
