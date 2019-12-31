@@ -1,25 +1,20 @@
-use crate::VulkanObject;
+use crate::shader;
+use crate::RenderPass;
 use crate::Renderer;
 use crate::SwapChain;
-use crate::RenderPass;
-use crate::shader;
+use crate::VulkanObject;
 
-use ash::{
-    vk,
-    Device,
-    version::DeviceV1_0
-};
+use ash::{version::DeviceV1_0, vk, Device};
 
 use std::ffi::CString;
 
-pub struct Pipeline
-{
+pub struct Pipeline {
     pipeline_layout: vk::PipelineLayout,
-    pipeline: vk::Pipeline
+    pipeline: vk::Pipeline,
 }
 
 impl Pipeline {
-    pub fn new(device: &Device,  swapchain: &SwapChain, render_pass: &RenderPass) -> Pipeline {
+    pub fn new(device: &Device, swapchain: &SwapChain, render_pass: &RenderPass) -> Pipeline {
         let vert_shader = shader::create_shader_module("assets/gen/shaders/shader.vert.spv", device).unwrap();
         let frag_shader = shader::create_shader_module("assets/gen/shaders/shader.frag.spv", device).unwrap();
 
@@ -30,13 +25,13 @@ impl Pipeline {
             .module(vert_shader)
             .name(&entry_point_name)
             .build();
-            
+
         let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
             .stage(vk::ShaderStageFlags::FRAGMENT)
             .module(frag_shader)
             .name(&entry_point_name)
             .build();
-            
+
         let shader_stages = [vert_shader_stage_info, frag_shader_stage_info];
 
         let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default();
@@ -55,12 +50,9 @@ impl Pipeline {
             .max_depth(1f32)
             .build();
 
-        let scissor = vk::Rect2D::builder().offset(vk::Offset2D { x: 0, y: 0}).extent(*swapchain.extent()).build();
+        let scissor = vk::Rect2D::builder().offset(vk::Offset2D { x: 0, y: 0 }).extent(*swapchain.extent()).build();
 
-        let viewport_state = vk::PipelineViewportStateCreateInfo::builder()
-            .viewports(&[viewport])
-            .scissors(&[scissor])
-            .build();
+        let viewport_state = vk::PipelineViewportStateCreateInfo::builder().viewports(&[viewport]).scissors(&[scissor]).build();
 
         let rasterizer = vk::PipelineRasterizationStateCreateInfo::builder()
             .depth_clamp_enable(false)
@@ -83,11 +75,7 @@ impl Pipeline {
             .blend_enable(false)
             .build();
 
-        let color_blending = vk::PipelineColorBlendStateCreateInfo::builder()
-            .logic_op_enable(false)
-            .attachments(&[color_blend_attachment])
-            .build();
-
+        let color_blending = vk::PipelineColorBlendStateCreateInfo::builder().logic_op_enable(false).attachments(&[color_blend_attachment]).build();
 
         let pipeline_layout_info = vk::PipelineLayoutCreateInfo::default();
 
@@ -112,10 +100,10 @@ impl Pipeline {
             device.destroy_shader_module(vert_shader, None);
             device.destroy_shader_module(frag_shader, None);
         }
-        
+
         Pipeline {
             pipeline_layout: pipeline_layout,
-            pipeline: pipeline
+            pipeline: pipeline,
         }
     }
 }

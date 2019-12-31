@@ -1,5 +1,5 @@
-use crate::QueueFamily;
 use crate::utility;
+use crate::QueueFamily;
 use crate::Renderer;
 use crate::Surface;
 use crate::SwapChain;

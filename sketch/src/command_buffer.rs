@@ -1,15 +1,11 @@
-use crate::VulkanObject;
-use crate::Renderer;
 use crate::CommandPool;
+use crate::Renderer;
+use crate::VulkanObject;
 
-use ash::{
-    vk,
-    Device,
-    version::DeviceV1_0
-};
+use ash::{version::DeviceV1_0, vk, Device};
 
 pub struct CommandBuffer {
-    command_buffers: Vec<vk::CommandBuffer>
+    command_buffers: Vec<vk::CommandBuffer>,
 }
 
 impl CommandBuffer {
@@ -19,14 +15,10 @@ impl CommandBuffer {
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(count)
             .build();
-        
-        let command_buffers = unsafe {
-            device.allocate_command_buffers(&alloc_info).unwrap()
-        };
 
-        CommandBuffer {
-            command_buffers: command_buffers
-        }
+        let command_buffers = unsafe { device.allocate_command_buffers(&alloc_info).unwrap() };
+
+        CommandBuffer { command_buffers: command_buffers }
     }
 }
 
@@ -37,6 +29,5 @@ impl VulkanObject for CommandBuffer {
         &self.command_buffers
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
-    }
+    fn cleanup(&self, _renderer: &Renderer) {}
 }

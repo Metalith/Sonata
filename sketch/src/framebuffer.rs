@@ -1,16 +1,12 @@
-use crate::VulkanObject;
 use crate::RenderPass;
-use crate::SwapChain;
 use crate::Renderer;
+use crate::SwapChain;
+use crate::VulkanObject;
 
-use ash::{
-    vk,
-    Device,
-    version::DeviceV1_0
-};
+use ash::{version::DeviceV1_0, vk, Device};
 
 pub struct FrameBuffer {
-    framebuffers: Vec<vk::Framebuffer>
+    framebuffers: Vec<vk::Framebuffer>,
 }
 
 impl FrameBuffer {
@@ -28,14 +24,10 @@ impl FrameBuffer {
                 .layers(1)
                 .build();
 
-            unsafe {
-                framebuffers.push(device.create_framebuffer(&framebuffer_info, None).unwrap())
-            }
+            unsafe { framebuffers.push(device.create_framebuffer(&framebuffer_info, None).unwrap()) }
         }
 
-        FrameBuffer {
-            framebuffers: framebuffers
-        }
+        FrameBuffer { framebuffers: framebuffers }
     }
 }
 
@@ -48,8 +40,7 @@ impl VulkanObject for FrameBuffer {
 
     fn cleanup(&self, _renderer: &Renderer) {
         unsafe {
-            for &framebuffer in self.framebuffers.iter()
-            {
+            for &framebuffer in self.framebuffers.iter() {
                 _renderer.logical_device.vulkan_object().destroy_framebuffer(framebuffer, None);
             }
         }

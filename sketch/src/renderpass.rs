@@ -1,19 +1,15 @@
-use crate::VulkanObject;
 use crate::Renderer;
 use crate::SwapChain;
+use crate::VulkanObject;
 
-use ash::{
-    vk,
-    Device,
-    version::DeviceV1_0
-};
+use ash::{version::DeviceV1_0, vk, Device};
 
 pub struct RenderPass {
-    render_pass: vk::RenderPass
+    render_pass: vk::RenderPass,
 }
 
 impl RenderPass {
-    pub fn new(device: &Device,  swapchain: &SwapChain) -> RenderPass {
+    pub fn new(device: &Device, swapchain: &SwapChain) -> RenderPass {
         let color_attachment = vk::AttachmentDescription::builder()
             .format(swapchain.surface_format().format)
             .samples(vk::SampleCountFlags::TYPE_1)
@@ -25,17 +21,13 @@ impl RenderPass {
             .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
             .build();
 
-        let color_attachment_ref = vk::AttachmentReference::builder()
-            .attachment(0)
-            .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            .build();
-            
+        let color_attachment_ref = vk::AttachmentReference::builder().attachment(0).layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL).build();
+
         let sub_pass = vk::SubpassDescription::builder()
             .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
             .color_attachments(&[color_attachment_ref])
             .build();
 
-            
         let dependency = vk::SubpassDependency::builder()
             .src_subpass(vk::SUBPASS_EXTERNAL)
             .dst_subpass(0)
@@ -53,12 +45,9 @@ impl RenderPass {
 
         let render_pass = unsafe { device.create_render_pass(&render_pass_info, None).unwrap() };
 
-        RenderPass {
-            render_pass: render_pass
-        }
+        RenderPass { render_pass: render_pass }
     }
 }
-
 
 impl VulkanObject for RenderPass {
     type Object = vk::RenderPass;
