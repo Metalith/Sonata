@@ -11,5 +11,7 @@ impl RenderSystem {
 }
 
 impl System for RenderSystem {
-    fn update(&self) {}
+    fn update(&self) {
+        self.renderer.draw_frame();
+    }
 }

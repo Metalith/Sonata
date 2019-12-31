@@ -144,6 +144,14 @@ impl SwapChain {
     pub fn present_mode(&self) -> &vk::PresentModeKHR {
         &self.present_mode
     }
+
+    pub fn image_views(&self) -> &Vec<vk::ImageView> {
+        &self.image_views
+    }   
+
+    pub fn get_loader(&self) -> &khr::Swapchain {
+        &self.swapchain_loader
+    }
 }
 
 impl VulkanObject for SwapChain {

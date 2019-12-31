@@ -1,4 +1,4 @@
-use crate::queue_family::QueueFamily;
+use crate::QueueFamily;
 use crate::utility;
 use crate::Renderer;
 use crate::Surface;

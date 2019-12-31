@@ -47,6 +47,14 @@ impl LogicalDevice {
             present_queue: present_queue,
         }
     }
+
+    pub fn graphics_queue(&self) -> &vk::Queue {
+        &self.graphics_queue
+    }
+    
+    pub fn present_queue(&self) -> &vk::Queue {
+        &self.present_queue
+    }
 }
 
 impl VulkanObject for LogicalDevice {
