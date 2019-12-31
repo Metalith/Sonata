@@ -10,7 +10,6 @@ pub struct SwapChain {
     swapchain: vk::SwapchainKHR,
     surface_format: vk::SurfaceFormatKHR,
     extent: vk::Extent2D,
-    present_mode: vk::PresentModeKHR,
     images: Vec<vk::Image>,
     image_views: Vec<vk::ImageView>,
 }
@@ -88,7 +87,6 @@ impl SwapChain {
             swapchain: swapchain,
             surface_format: surface_format,
             extent: extent,
-            present_mode: present_mode,
             images: images,
             image_views: image_views,
         }
@@ -136,18 +134,18 @@ impl SwapChain {
     pub fn extent(&self) -> &vk::Extent2D {
         &self.extent
     }
-    
+
     pub fn surface_format(&self) -> &vk::SurfaceFormatKHR {
         &self.surface_format
     }
 
-    pub fn present_mode(&self) -> &vk::PresentModeKHR {
-        &self.present_mode
+    pub fn images(&self) -> &Vec<vk::Image> {
+        &self.images
     }
 
     pub fn image_views(&self) -> &Vec<vk::ImageView> {
         &self.image_views
-    }   
+    }
 
     pub fn get_loader(&self) -> &khr::Swapchain {
         &self.swapchain_loader
