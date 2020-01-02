@@ -27,7 +27,7 @@ impl VulkanObject for CommandPool {
 
     fn cleanup(&self, _renderer: &Renderer) {
         unsafe {
-            _renderer.logical_device.vulkan_object().destroy_command_pool(self.command_pool, None);
+            _renderer.get_device().destroy_command_pool(self.command_pool, None);
         }
     }
 }

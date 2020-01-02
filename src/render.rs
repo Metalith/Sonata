@@ -6,7 +6,9 @@ pub struct RenderSystem {
 
 impl RenderSystem {
     pub fn new(win: &winit::window::Window) -> Self {
-        RenderSystem { renderer: sketch::Renderer::new(win) }
+        let renderer = sketch::Renderer::new(win);
+        renderer.setup();
+        RenderSystem { renderer: renderer }
     }
 }
 

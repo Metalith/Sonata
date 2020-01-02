@@ -41,7 +41,7 @@ impl VulkanObject for FrameBuffer {
     fn cleanup(&self, _renderer: &Renderer) {
         unsafe {
             for &framebuffer in self.framebuffers.iter() {
-                _renderer.logical_device.vulkan_object().destroy_framebuffer(framebuffer, None);
+                _renderer.get_device().destroy_framebuffer(framebuffer, None);
             }
         }
     }

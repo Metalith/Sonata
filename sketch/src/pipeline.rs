@@ -20,26 +20,15 @@ impl Pipeline {
 
         let entry_point_name = CString::new("main").unwrap();
 
-        let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
-            .stage(vk::ShaderStageFlags::VERTEX)
-            .module(vert_shader)
-            .name(&entry_point_name)
-            .build();
+        let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder().stage(vk::ShaderStageFlags::VERTEX).module(vert_shader).name(&entry_point_name).build();
 
-        let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
-            .stage(vk::ShaderStageFlags::FRAGMENT)
-            .module(frag_shader)
-            .name(&entry_point_name)
-            .build();
+        let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder().stage(vk::ShaderStageFlags::FRAGMENT).module(frag_shader).name(&entry_point_name).build();
 
         let shader_stages = [vert_shader_stage_info, frag_shader_stage_info];
 
         let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default();
 
-        let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder()
-            .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
-            .primitive_restart_enable(false)
-            .build();
+        let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder().topology(vk::PrimitiveTopology::TRIANGLE_LIST).primitive_restart_enable(false).build();
 
         let viewport = vk::Viewport::builder()
             .x(0f32)
@@ -70,10 +59,7 @@ impl Pipeline {
             .min_sample_shading(1f32)
             .build();
 
-        let color_blend_attachment = vk::PipelineColorBlendAttachmentState::builder()
-            .color_write_mask(vk::ColorComponentFlags::all())
-            .blend_enable(false)
-            .build();
+        let color_blend_attachment = vk::PipelineColorBlendAttachmentState::builder().color_write_mask(vk::ColorComponentFlags::all()).blend_enable(false).build();
 
         let color_blending = vk::PipelineColorBlendStateCreateInfo::builder().logic_op_enable(false).attachments(&[color_blend_attachment]).build();
 
@@ -117,8 +103,8 @@ impl VulkanObject for Pipeline {
 
     fn cleanup(&self, _renderer: &Renderer) {
         unsafe {
-            _renderer.logical_device.vulkan_object().destroy_pipeline(self.pipeline, None);
-            _renderer.logical_device.vulkan_object().destroy_pipeline_layout(self.pipeline_layout, None);
+            _renderer.get_device().destroy_pipeline(self.pipeline, None);
+            _renderer.get_device().destroy_pipeline_layout(self.pipeline_layout, None);
         }
     }
 }

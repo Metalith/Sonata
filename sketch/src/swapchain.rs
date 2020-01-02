@@ -162,7 +162,7 @@ impl VulkanObject for SwapChain {
     fn cleanup(&self, _renderer: &Renderer) {
         unsafe {
             for &image_view in self.image_views.iter() {
-                _renderer.logical_device.vulkan_object().destroy_image_view(image_view, None);
+                _renderer.get_device().destroy_image_view(image_view, None);
             }
             self.swapchain_loader.destroy_swapchain(self.swapchain, None);
         }
