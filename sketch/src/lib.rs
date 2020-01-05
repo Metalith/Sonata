@@ -50,7 +50,7 @@ pub struct Renderer {
     command_pool: CommandPool,
     command_buffers: CommandBuffer,
     sync_objects: SyncObjects,
-    current_frame: Cell<usize>,
+    current_frame: usize,
 }
 
 impl Renderer {
@@ -81,7 +81,7 @@ impl Renderer {
             command_pool: command_pool,
             command_buffers: command_buffers,
             sync_objects: sync_objects,
-            current_frame: Cell::new(0),
+            current_frame: 0,
         }
     }
 
@@ -110,48 +110,50 @@ impl Renderer {
         }
     }
 
-    pub fn draw_frame(&self) {
+    pub fn draw_frame(&mut self) {
         unsafe {
-            self.get_device().wait_for_fences(&[self.sync_objects.in_flight_fences[self.current_frame.get()]], true, std::u64::MAX).unwrap();
+            self.get_device().wait_for_fences(&[self.sync_objects.in_flight_fences[self.current_frame]], true, std::u64::MAX).unwrap();
         }
 
-        let (image_index, _) = unsafe {
-            self.swapchain
-                .get_loader()
-                .acquire_next_image(*self.swapchain.vulkan_object(), std::u64::MAX, self.sync_objects.image_available_semaphores[self.current_frame.get()], vk::Fence::null())
+        let (image_index_32, _) = unsafe {
+            self.get_swapchain_loader()
+                .acquire_next_image(*self.swapchain.vulkan_object(), std::u64::MAX, self.sync_objects.image_available_semaphores[self.current_frame], vk::Fence::null())
                 .unwrap()
         };
+        let image_index = image_index_32 as usize;
 
-        if self.sync_objects.images_in_flight.borrow()[image_index as usize] != vk::Fence::null() {
+        if self.sync_objects.get_image_in_flight(image_index) != vk::Fence::null() {
             unsafe {
-                self.get_device().wait_for_fences(&[self.sync_objects.images_in_flight.borrow()[image_index as usize]], true, std::u64::MAX).unwrap();
+                self.get_device().wait_for_fences(&[self.sync_objects.get_image_in_flight(image_index)], true, std::u64::MAX).unwrap();
             }
         }
-        self.sync_objects.images_in_flight.borrow_mut()[image_index as usize] = self.sync_objects.in_flight_fences[self.current_frame.get()];
+        self.sync_objects.set_image_in_flight(image_index, self.current_frame);
 
         let submit_info = vk::SubmitInfo::builder()
-            .wait_semaphores(&[self.sync_objects.image_available_semaphores[self.current_frame.get()]])
+            .wait_semaphores(&[self.sync_objects.image_available_semaphores[self.current_frame]])
             .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
-            .command_buffers(&[self.command_buffers.vulkan_object()[image_index as usize]])
-            .signal_semaphores(&[self.sync_objects.render_finished_semaphores[self.current_frame.get()]])
+            .command_buffers(&[self.command_buffers.vulkan_object()[image_index]])
+            .signal_semaphores(&[self.sync_objects.render_finished_semaphores[self.current_frame]])
             .build();
 
         unsafe {
-            self.get_device().reset_fences(&[self.sync_objects.in_flight_fences[self.current_frame.get()]]).unwrap();
-            self.get_device().queue_submit(*self.logical_device.graphics_queue(), &[submit_info], self.sync_objects.in_flight_fences[self.current_frame.get()]).unwrap();
+            self.get_device().reset_fences(&[self.sync_objects.in_flight_fences[self.current_frame]]).unwrap();
+            self.get_device()
+                .queue_submit(*self.logical_device.graphics_queue(), &[submit_info], self.sync_objects.in_flight_fences[self.current_frame])
+                .unwrap();
         };
 
         let present_info = vk::PresentInfoKHR::builder()
-            .wait_semaphores(&[self.sync_objects.render_finished_semaphores[self.current_frame.get()]])
+            .wait_semaphores(&[self.sync_objects.render_finished_semaphores[self.current_frame]])
             .swapchains(&[*self.swapchain.vulkan_object()])
-            .image_indices(&[image_index])
+            .image_indices(&[image_index_32])
             .build();
 
         unsafe {
             self.get_swapchain_loader().queue_present(*self.logical_device.present_queue(), &present_info).unwrap();
         }
 
-        self.current_frame.set((self.current_frame.get() + 1) % MAX_FRAMES_IN_FLIGHT);
+        self.current_frame = (self.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
     pub(crate) fn get_device(&self) -> &Device {
@@ -161,20 +163,17 @@ impl Renderer {
     pub(crate) fn get_swapchain_loader(&self) -> &khr::Swapchain {
         self.swapchain.get_loader()
     }
+
+    pub(crate) fn get_command_pool(&self) -> &vk::CommandPool {
+        self.command_pool.vulkan_object()
+    }
 }
 
 impl Drop for Renderer {
     fn drop(&mut self) {
         unsafe { self.get_device().device_wait_idle().unwrap() };
 
-        for i in 0..MAX_FRAMES_IN_FLIGHT {
-            unsafe {
-                self.get_device().destroy_fence(self.sync_objects.in_flight_fences[i], None);
-                self.get_device().destroy_semaphore(self.sync_objects.image_available_semaphores[i], None);
-                self.get_device().destroy_semaphore(self.sync_objects.render_finished_semaphores[i], None);
-            }
-        }
-
+        self.sync_objects.cleanup(self);
         self.command_pool.cleanup(self);
         self.frame_buffers.cleanup(self);
         self.pipeline.cleanup(self);
@@ -225,5 +224,23 @@ impl SyncObjects {
             in_flight_fences,
             images_in_flight,
         }
+    }
+
+    fn cleanup(&self, _renderer: &Renderer) {
+        for i in 0..self.in_flight_fences.len() {
+            unsafe {
+                _renderer.get_device().destroy_fence(self.in_flight_fences[i], None);
+                _renderer.get_device().destroy_semaphore(self.image_available_semaphores[i], None);
+                _renderer.get_device().destroy_semaphore(self.render_finished_semaphores[i], None);
+            }
+        }
+    }
+
+    fn set_image_in_flight(&self, index: usize, frame: usize) {
+        self.images_in_flight.borrow_mut()[index] = self.in_flight_fences[frame];
+    }
+
+    fn get_image_in_flight(&self, index: usize) -> vk::Fence {
+        self.images_in_flight.borrow()[index]
     }
 }

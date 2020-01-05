@@ -29,5 +29,9 @@ impl VulkanObject for CommandBuffer {
         &self.command_buffers
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {}
+    fn cleanup(&self, _renderer: &Renderer) {
+        unsafe {
+            _renderer.get_device().free_command_buffers(*_renderer.get_command_pool(), &self.command_buffers);
+        }
+    }
 }
