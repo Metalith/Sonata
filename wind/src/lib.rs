@@ -2,19 +2,16 @@ pub trait System {
     fn update(&self);
 }
 
-pub struct Engine {
-    systems: Vec<Box<dyn System>>
+pub struct Engine<'a> {
+    systems: Vec<Box<dyn System + 'a>>,
 }
 
-
-impl Engine {
+impl<'a> Engine<'a> {
     pub fn new() -> Self {
-        Engine {
-            systems: Vec::new()
-        }
+        Engine { systems: Vec::new() }
     }
 
-    pub fn add_system<T: System + 'static>(&mut self, sys: T) {
+    pub fn add_system<T: System + 'a>(&mut self, sys: T) {
         self.systems.push(Box::new(sys));
     }
 

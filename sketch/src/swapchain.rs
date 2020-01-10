@@ -15,12 +15,12 @@ pub struct SwapChain {
 }
 
 impl SwapChain {
-    pub fn new(instance: &Instance, logical_device: &Device, physical_device: &PhysicalDevice, surface: &Surface, preferred_dimensions: [u32; 2]) -> Self {
+    pub fn new<T: Fn() -> (u32, u32)>(instance: &Instance, logical_device: &Device, physical_device: &PhysicalDevice, surface: &Surface, win_size_cb: &T) -> Self {
         let swapchain_support = Self::query_support(*physical_device.vulkan_object(), surface);
 
         let surface_format = Self::choose_surface_format(swapchain_support.formats);
         let present_mode = Self::choose_present_mode(swapchain_support.present_modes);
-        let extent = Self::choose_extent(swapchain_support.capabilities, preferred_dimensions);
+        let extent = Self::choose_extent(swapchain_support.capabilities, win_size_cb);
 
         let mut image_count = swapchain_support.capabilities.min_image_count + 1;
         if swapchain_support.capabilities.min_image_count > 0 && image_count > swapchain_support.capabilities.max_image_count {
@@ -120,13 +120,14 @@ impl SwapChain {
         availabe_present_modes[0]
     }
 
-    pub fn choose_extent(capabilities: vk::SurfaceCapabilitiesKHR, preferred_dimensions: [u32; 2]) -> vk::Extent2D {
+    pub fn choose_extent<T: Fn() -> (u32, u32)>(capabilities: vk::SurfaceCapabilitiesKHR, win_size_cb: &T) -> vk::Extent2D {
         if capabilities.current_extent.width != std::u32::MAX {
             return capabilities.current_extent;
         } else {
+            let (width, height) = win_size_cb();
             vk::Extent2D {
-                width: preferred_dimensions[0].max(capabilities.min_image_extent.width).min(capabilities.max_image_extent.width),
-                height: preferred_dimensions[1].max(capabilities.min_image_extent.height).min(capabilities.max_image_extent.height),
+                width: width.max(capabilities.min_image_extent.width).min(capabilities.max_image_extent.width),
+                height: height.max(capabilities.min_image_extent.height).min(capabilities.max_image_extent.height),
             }
         }
     }

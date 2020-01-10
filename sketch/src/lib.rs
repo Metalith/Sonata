@@ -32,16 +32,15 @@ use swapchain::SwapChain;
 use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Entry};
 use winit::window::Window;
 
-use std::cell::Cell;
 use std::cell::RefCell;
 
 const MAX_FRAMES_IN_FLIGHT: usize = 2;
 
-pub struct Renderer {
+pub struct Renderer<'a> {
     _entry: Entry,
     instance: Instance,
     surface: Surface,
-    _physical_device: PhysicalDevice,
+    physical_device: PhysicalDevice,
     logical_device: LogicalDevice,
     swapchain: SwapChain,
     render_pass: RenderPass,
@@ -51,16 +50,17 @@ pub struct Renderer {
     command_buffers: CommandBuffer,
     sync_objects: SyncObjects,
     current_frame: usize,
+    window_size_cb: Box<dyn Fn() -> (u32, u32) + 'a>,
 }
 
-impl Renderer {
-    pub fn new(win: &Window) -> Self {
+impl<'a> Renderer<'a> {
+    pub fn new<T: Fn() -> (u32, u32) + 'a>(win: &'a Window, window_size_cb: T) -> Renderer<'a> {
         let entry = Entry::new().unwrap();
         let instance = Instance::new(&entry);
         let surface = Surface::new(win, &entry, instance.vulkan_object());
         let physical_device = PhysicalDevice::new(instance.vulkan_object(), &surface);
         let logical_device = LogicalDevice::new(instance.vulkan_object(), &physical_device);
-        let swapchain = SwapChain::new(instance.vulkan_object(), logical_device.vulkan_object(), &physical_device, &surface, [800, 680]);
+        let swapchain = SwapChain::new(instance.vulkan_object(), logical_device.vulkan_object(), &physical_device, &surface, &window_size_cb);
         let render_pass = RenderPass::new(logical_device.vulkan_object(), &swapchain);
         let pipeline = Pipeline::new(logical_device.vulkan_object(), &swapchain, &render_pass);
         let framebuffer = FrameBuffer::new(logical_device.vulkan_object(), &swapchain, &render_pass);
@@ -72,7 +72,7 @@ impl Renderer {
             _entry: entry,
             instance: instance,
             surface: surface,
-            _physical_device: physical_device,
+            physical_device: physical_device,
             logical_device: logical_device,
             swapchain: swapchain,
             render_pass: render_pass,
@@ -82,6 +82,7 @@ impl Renderer {
             command_buffers: command_buffers,
             sync_objects: sync_objects,
             current_frame: 0,
+            window_size_cb: Box::new(window_size_cb),
         }
     }
 
@@ -110,17 +111,36 @@ impl Renderer {
         }
     }
 
+    fn recreate_swapchain(&mut self) {
+        unsafe { self.get_device().device_wait_idle().unwrap() };
+
+        self.cleanup_swapchain();
+
+        self.swapchain = SwapChain::new(self.instance.vulkan_object(), self.get_device(), &self.physical_device, &self.surface, &self.window_size_cb);
+        self.render_pass = RenderPass::new(self.get_device(), &self.swapchain);
+        self.pipeline = Pipeline::new(self.get_device(), &self.swapchain, &self.render_pass);
+        self.frame_buffers = FrameBuffer::new(self.get_device(), &self.swapchain, &self.render_pass);
+        self.command_buffers = CommandBuffer::new(self.get_device(), &self.command_pool, self.frame_buffers.vulkan_object().len() as u32);
+
+        self.setup();
+    }
+
     pub fn draw_frame(&mut self) {
         unsafe {
             self.get_device().wait_for_fences(&[self.sync_objects.in_flight_fences[self.current_frame]], true, std::u64::MAX).unwrap();
         }
 
-        let (image_index_32, _) = unsafe {
+        let (image_index_32, sub_optimal) = unsafe {
             self.get_swapchain_loader()
                 .acquire_next_image(*self.swapchain.vulkan_object(), std::u64::MAX, self.sync_objects.image_available_semaphores[self.current_frame], vk::Fence::null())
                 .unwrap()
         };
         let image_index = image_index_32 as usize;
+
+        if sub_optimal {
+            self.recreate_swapchain();
+            return;
+        }
 
         if self.sync_objects.get_image_in_flight(image_index) != vk::Fence::null() {
             unsafe {
@@ -150,10 +170,23 @@ impl Renderer {
             .build();
 
         unsafe {
-            self.get_swapchain_loader().queue_present(*self.logical_device.present_queue(), &present_info).unwrap();
+            let result = self.get_swapchain_loader().queue_present(*self.logical_device.present_queue(), &present_info);
+            match result {
+                Ok(true) | Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => self.recreate_swapchain(),
+                Ok(false) => {}
+                _ => panic!("window present failed"),
+            }
         }
 
         self.current_frame = (self.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+    }
+
+    fn cleanup_swapchain(&self) {
+        self.frame_buffers.cleanup(self);
+        self.command_buffers.cleanup(self);
+        self.pipeline.cleanup(self);
+        self.render_pass.cleanup(self);
+        self.swapchain.cleanup(self);
     }
 
     pub(crate) fn get_device(&self) -> &Device {
@@ -169,16 +202,13 @@ impl Renderer {
     }
 }
 
-impl Drop for Renderer {
+impl<'a> Drop for Renderer<'a> {
     fn drop(&mut self) {
         unsafe { self.get_device().device_wait_idle().unwrap() };
 
+        self.cleanup_swapchain();
         self.sync_objects.cleanup(self);
         self.command_pool.cleanup(self);
-        self.frame_buffers.cleanup(self);
-        self.pipeline.cleanup(self);
-        self.render_pass.cleanup(self);
-        self.swapchain.cleanup(self);
         self.logical_device.cleanup(self);
         self.surface.cleanup(self);
         self.instance.cleanup(self);
