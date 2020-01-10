@@ -50,6 +50,7 @@ pub struct Renderer<'a> {
     command_buffers: CommandBuffer,
     sync_objects: SyncObjects,
     current_frame: usize,
+    last_win_size: (u32, u32),
     window_size_cb: Box<dyn Fn() -> (u32, u32) + 'a>,
 }
 
@@ -82,6 +83,7 @@ impl<'a> Renderer<'a> {
             command_buffers: command_buffers,
             sync_objects: sync_objects,
             current_frame: 0,
+            last_win_size: window_size_cb(),
             window_size_cb: Box::new(window_size_cb),
         }
     }
@@ -112,6 +114,10 @@ impl<'a> Renderer<'a> {
     }
 
     fn recreate_swapchain(&mut self) {
+        if self.window_is_minimized() {
+            return;
+        }
+
         unsafe { self.get_device().device_wait_idle().unwrap() };
 
         self.cleanup_swapchain();
@@ -125,22 +131,34 @@ impl<'a> Renderer<'a> {
         self.setup();
     }
 
+    fn window_is_minimized(&self) -> bool {
+        self.get_window_size() == (0, 0)
+    }
+
     pub fn draw_frame(&mut self) {
         unsafe {
             self.get_device().wait_for_fences(&[self.sync_objects.in_flight_fences[self.current_frame]], true, std::u64::MAX).unwrap();
         }
 
-        let (image_index_32, sub_optimal) = unsafe {
+        let image_result = unsafe {
             self.get_swapchain_loader()
                 .acquire_next_image(*self.swapchain.vulkan_object(), std::u64::MAX, self.sync_objects.image_available_semaphores[self.current_frame], vk::Fence::null())
-                .unwrap()
         };
-        let image_index = image_index_32 as usize;
 
-        if sub_optimal {
-            self.recreate_swapchain();
-            return;
-        }
+        match image_result {
+            Ok((_, true)) | Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
+                if self.window_is_minimized() {
+                    return;
+                }
+                self.recreate_swapchain();
+                return;
+            }
+            Ok((_, false)) => {}
+            _ => panic!("acquire swapchain image failed"),
+        };
+
+        let (image_index_32, _) = image_result.unwrap();
+        let image_index = image_index_32 as usize;
 
         if self.sync_objects.get_image_in_flight(image_index) != vk::Fence::null() {
             unsafe {
@@ -173,11 +191,16 @@ impl<'a> Renderer<'a> {
             let result = self.get_swapchain_loader().queue_present(*self.logical_device.present_queue(), &present_info);
             match result {
                 Ok(true) | Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => self.recreate_swapchain(),
-                Ok(false) => {}
+                Ok(false) => {
+                    if self.last_win_size != self.get_window_size() {
+                        self.recreate_swapchain()
+                    }
+                }
                 _ => panic!("window present failed"),
             }
         }
 
+        self.last_win_size = self.get_window_size();
         self.current_frame = (self.current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
@@ -199,6 +222,10 @@ impl<'a> Renderer<'a> {
 
     pub(crate) fn get_command_pool(&self) -> &vk::CommandPool {
         self.command_pool.vulkan_object()
+    }
+
+    fn get_window_size(&self) -> (u32, u32) {
+        (*self.window_size_cb)()
     }
 }
 

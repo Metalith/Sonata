@@ -10,7 +10,7 @@ pub struct RenderSystem<'a> {
 impl<'a> RenderSystem<'a> {
     pub fn new(win: &'a Window) -> Self {
         let b = Box::new(move || -> (u32, u32) {
-            let t = win.outer_size();
+            let t = win.inner_size();
             (t.width, t.height)
         });
         let renderer = sketch::Renderer::new(win, b);

@@ -42,7 +42,6 @@ fn main() {
             Event::MainEventsCleared => {
                 *control_flow = ControlFlow::Exit;
                 e.update();
-                window.request_redraw();
             }
             _ => (),
         });
