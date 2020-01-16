@@ -1,9 +1,11 @@
+extern crate build_deps;
+
 use shaderc;
 
 use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("cargo:rerun-if-changed=assets/shaders");
+    build_deps::rerun_if_changed_paths("assets/shaders/*").unwrap();
 
     let mut compiler = shaderc::Compiler::new().unwrap();
     let out_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
