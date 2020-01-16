@@ -1,4 +1,7 @@
 use wind::System;
+
+use sketch::vertex::Vertex;
+
 use winit::window::Window;
 
 use std::cell::RefCell;
@@ -13,7 +16,22 @@ impl<'a> RenderSystem<'a> {
             let t = win.inner_size();
             (t.width, t.height)
         });
-        let renderer = sketch::Renderer::new(win, b);
+
+        let vertices = [
+            Vertex {
+                pos: [0.0f32, -0.5f32],
+                color: [1.0f32, 0.0f32, 0.0f32],
+            },
+            Vertex {
+                pos: [0.5f32, 0.5f32],
+                color: [0.0f32, 1.0f32, 0.0f32],
+            },
+            Vertex {
+                pos: [-0.5f32, 0.5f32],
+                color: [1.0f32, 1.0f32, 1.0f32],
+            },
+        ];
+        let renderer = sketch::Renderer::new(win, b, &vertices);
         renderer.setup();
         RenderSystem { renderer: RefCell::new(renderer) }
     }

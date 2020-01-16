@@ -2,6 +2,7 @@ use crate::shader;
 use crate::RenderPass;
 use crate::Renderer;
 use crate::SwapChain;
+use crate::Vertex;
 use crate::VulkanObject;
 
 use ash::{version::DeviceV1_0, vk, Device};
@@ -26,7 +27,12 @@ impl Pipeline {
 
         let shader_stages = [vert_shader_stage_info, frag_shader_stage_info];
 
-        let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::default();
+        let vertex_binding_descriptions = [Vertex::get_binding_description()];
+        let vertex_attribute_descriptions = Vertex::get_attribute_descriptions();
+        let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::builder()
+            .vertex_attribute_descriptions(&vertex_attribute_descriptions)
+            .vertex_binding_descriptions(&vertex_binding_descriptions)
+            .build();
 
         let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder().topology(vk::PrimitiveTopology::TRIANGLE_LIST).primitive_restart_enable(false).build();
 

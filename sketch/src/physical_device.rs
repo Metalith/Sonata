@@ -11,6 +11,7 @@ use std::ffi::CStr;
 
 pub struct PhysicalDevice {
     physical_device: vk::PhysicalDevice,
+    mem_properties: vk::PhysicalDeviceMemoryProperties,
     graphics_index: u32,
     present_index: u32,
 }
@@ -19,9 +20,11 @@ impl PhysicalDevice {
     pub fn new(instance: &Instance, surface: &Surface) -> Self {
         let physical_device = Self::pick_suitable_device(instance, surface);
         let (graphics_index, present_index) = Self::get_queue_indices(instance, physical_device, surface).unwrap();
+        let mem_properties = unsafe { instance.get_physical_device_memory_properties(physical_device) };
 
         PhysicalDevice {
             physical_device: physical_device,
+            mem_properties: mem_properties,
             graphics_index: graphics_index,
             present_index: present_index,
         }
@@ -113,6 +116,10 @@ impl PhysicalDevice {
 
     pub fn present_index(&self) -> &u32 {
         &self.present_index
+    }
+
+    pub fn get_mem_properties(&self) -> &vk::PhysicalDeviceMemoryProperties {
+        &self.mem_properties
     }
 }
 

@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
+mod buffer;
 mod command_buffer;
 mod command_pool;
 mod debug;
@@ -15,7 +16,9 @@ mod shader;
 mod surface;
 mod swapchain;
 mod utility;
+pub mod vertex;
 
+use buffer::Buffer;
 use command_buffer::CommandBuffer;
 use command_pool::CommandPool;
 use debug::DebugMessenger;
@@ -28,6 +31,7 @@ use queue_family::QueueFamily;
 use renderpass::RenderPass;
 use surface::Surface;
 use swapchain::SwapChain;
+use vertex::Vertex;
 
 use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Entry};
 use winit::window::Window;
@@ -49,13 +53,14 @@ pub struct Renderer<'a> {
     command_pool: CommandPool,
     command_buffers: CommandBuffer,
     sync_objects: SyncObjects,
+    vertex_buffer: Buffer,
     current_frame: usize,
     last_win_size: (u32, u32),
     window_size_cb: Box<dyn Fn() -> (u32, u32) + 'a>,
 }
 
 impl<'a> Renderer<'a> {
-    pub fn new<T: Fn() -> (u32, u32) + 'a>(win: &'a Window, window_size_cb: T) -> Renderer<'a> {
+    pub fn new<T: Fn() -> (u32, u32) + 'a>(win: &'a Window, window_size_cb: T, vertices: &[Vertex]) -> Renderer<'a> {
         let entry = Entry::new().unwrap();
         let instance = Instance::new(&entry);
         let surface = Surface::new(win, &entry, instance.vulkan_object());
@@ -68,6 +73,7 @@ impl<'a> Renderer<'a> {
         let command_pool = CommandPool::new(logical_device.vulkan_object(), &physical_device);
         let command_buffers = CommandBuffer::new(logical_device.vulkan_object(), &command_pool, framebuffer.vulkan_object().len() as u32);
         let sync_objects = SyncObjects::new(logical_device.vulkan_object(), MAX_FRAMES_IN_FLIGHT, swapchain.images().len());
+        let vertex_buffer = Buffer::new(vertices, logical_device.vulkan_object(), &physical_device);
 
         Renderer {
             _entry: entry,
@@ -82,6 +88,7 @@ impl<'a> Renderer<'a> {
             command_pool: command_pool,
             command_buffers: command_buffers,
             sync_objects: sync_objects,
+            vertex_buffer: vertex_buffer,
             current_frame: 0,
             last_win_size: window_size_cb(),
             window_size_cb: Box::new(window_size_cb),
@@ -106,6 +113,10 @@ impl<'a> Renderer<'a> {
             unsafe {
                 self.get_device().cmd_begin_render_pass(self.command_buffers.vulkan_object()[i], &render_pass_info, vk::SubpassContents::INLINE);
                 self.get_device().cmd_bind_pipeline(self.command_buffers.vulkan_object()[i], vk::PipelineBindPoint::GRAPHICS, *self.pipeline.vulkan_object());
+
+                let buffers = [*self.vertex_buffer.vulkan_object()];
+                let offsets = [0];
+                self.get_device().cmd_bind_vertex_buffers(self.command_buffers.vulkan_object()[i], 0, &buffers, &offsets);
                 self.get_device().cmd_draw(self.command_buffers.vulkan_object()[i], 3, 1, 0, 0);
                 self.get_device().cmd_end_render_pass(self.command_buffers.vulkan_object()[i]);
                 self.get_device().end_command_buffer(self.command_buffers.vulkan_object()[i]).unwrap();
@@ -234,6 +245,7 @@ impl<'a> Drop for Renderer<'a> {
         unsafe { self.get_device().device_wait_idle().unwrap() };
 
         self.cleanup_swapchain();
+        self.vertex_buffer.cleanup(self);
         self.sync_objects.cleanup(self);
         self.command_pool.cleanup(self);
         self.logical_device.cleanup(self);
