@@ -41,7 +41,7 @@ impl<'a> Renderer<'a> {
         let logical_device = LogicalDevice::new(instance.vulkan_object(), &physical_device);
         let swapchain = SwapChain::new(instance.vulkan_object(), logical_device.vulkan_object(), &physical_device, &surface, &window_size_cb);
         let render_pass = RenderPass::new(logical_device.vulkan_object(), &swapchain);
-        let pipeline = Pipeline::new(logical_device.vulkan_object(), &swapchain, &render_pass);
+        let pipeline = Pipeline::new(logical_device.vulkan_object(), &render_pass);
         let framebuffer = FrameBuffer::new(logical_device.vulkan_object(), &swapchain, &render_pass);
         let command_pool = CommandPool::new(logical_device.vulkan_object(), &physical_device);
         let command_buffers = CommandBuffer::new(logical_device.vulkan_object(), &command_pool, framebuffer.vulkan_object().len() as u32);
@@ -83,9 +83,21 @@ impl<'a> Renderer<'a> {
                 .clear_values(&[clear_color])
                 .build();
 
+            let viewport = vk::Viewport::builder()
+                .x(0f32)
+                .y(0f32)
+                .width(self.swapchain.extent().width as f32)
+                .height(self.swapchain.extent().height as f32)
+                .min_depth(0f32)
+                .max_depth(1f32)
+                .build();
+            let scissor = vk::Rect2D::builder().offset(vk::Offset2D { x: 0, y: 0 }).extent(*self.swapchain.extent()).build();
+
             unsafe {
                 self.get_device().cmd_begin_render_pass(self.command_buffers.vulkan_object()[i], &render_pass_info, vk::SubpassContents::INLINE);
                 self.get_device().cmd_bind_pipeline(self.command_buffers.vulkan_object()[i], vk::PipelineBindPoint::GRAPHICS, *self.pipeline.vulkan_object());
+                self.get_device().cmd_set_viewport(self.command_buffers.vulkan_object()[i], 0, &[viewport]);
+                self.get_device().cmd_set_scissor(self.command_buffers.vulkan_object()[i], 0, &[scissor]);
 
                 let buffers = [*self.vertex_buffer.vulkan_object()];
                 let offsets = [0];
@@ -108,7 +120,6 @@ impl<'a> Renderer<'a> {
 
         self.swapchain = SwapChain::new(self.instance.vulkan_object(), self.get_device(), &self.physical_device, &self.surface, &self.window_size_cb);
         self.render_pass = RenderPass::new(self.get_device(), &self.swapchain);
-        self.pipeline = Pipeline::new(self.get_device(), &self.swapchain, &self.render_pass);
         self.frame_buffers = FrameBuffer::new(self.get_device(), &self.swapchain, &self.render_pass);
         self.command_buffers = CommandBuffer::new(self.get_device(), &self.command_pool, self.frame_buffers.vulkan_object().len() as u32);
 
@@ -191,7 +202,6 @@ impl<'a> Renderer<'a> {
     fn cleanup_swapchain(&self) {
         self.frame_buffers.cleanup(self);
         self.command_buffers.cleanup(self);
-        self.pipeline.cleanup(self);
         self.render_pass.cleanup(self);
         self.swapchain.cleanup(self);
     }
@@ -221,6 +231,7 @@ impl<'a> Drop for Renderer<'a> {
         self.vertex_buffer.cleanup(self);
         self.sync_objects.cleanup(self);
         self.command_pool.cleanup(self);
+        self.pipeline.cleanup(self);
         self.logical_device.cleanup(self);
         self.surface.cleanup(self);
         self.instance.cleanup(self);

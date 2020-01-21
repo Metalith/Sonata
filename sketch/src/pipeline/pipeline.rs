@@ -1,7 +1,6 @@
 use super::shader;
 use crate::model::Vertex;
 use crate::renderpass::RenderPass;
-use crate::renderpass::SwapChain;
 use crate::Renderer;
 use crate::VulkanObject;
 
@@ -15,7 +14,7 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(device: &Device, swapchain: &SwapChain, render_pass: &RenderPass) -> Pipeline {
+    pub fn new(device: &Device, render_pass: &RenderPass) -> Pipeline {
         let vert_shader = shader::create_shader_module("assets/gen/shaders/shader.vert.spv", device).unwrap();
         let frag_shader = shader::create_shader_module("assets/gen/shaders/shader.frag.spv", device).unwrap();
 
@@ -36,18 +35,7 @@ impl Pipeline {
 
         let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder().topology(vk::PrimitiveTopology::TRIANGLE_LIST).primitive_restart_enable(false).build();
 
-        let viewport = vk::Viewport::builder()
-            .x(0f32)
-            .y(0f32)
-            .width(swapchain.extent().width as f32)
-            .height(swapchain.extent().height as f32)
-            .min_depth(0f32)
-            .max_depth(1f32)
-            .build();
-
-        let scissor = vk::Rect2D::builder().offset(vk::Offset2D { x: 0, y: 0 }).extent(*swapchain.extent()).build();
-
-        let viewport_state = vk::PipelineViewportStateCreateInfo::builder().viewports(&[viewport]).scissors(&[scissor]).build();
+        let viewport_state = vk::PipelineViewportStateCreateInfo::builder().viewport_count(1).scissor_count(1).build();
 
         let rasterizer = vk::PipelineRasterizationStateCreateInfo::builder()
             .depth_clamp_enable(false)
@@ -73,6 +61,9 @@ impl Pipeline {
 
         let pipeline_layout = unsafe { device.create_pipeline_layout(&pipeline_layout_info, None).unwrap() };
 
+        let dynamic_states = vec![vk::DynamicState::SCISSOR, vk::DynamicState::VIEWPORT];
+        let dynamic_states_info = vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_states).build();
+
         let pipeline_create_info = vk::GraphicsPipelineCreateInfo::builder()
             .stages(&shader_stages)
             .vertex_input_state(&vertex_input_info)
@@ -83,6 +74,7 @@ impl Pipeline {
             .color_blend_state(&color_blending)
             .layout(pipeline_layout)
             .render_pass(*render_pass.vulkan_object())
+            .dynamic_state(&dynamic_states_info)
             .subpass(0)
             .build();
 
