@@ -1,4 +1,4 @@
-use crate::utility;
+use crate::utility::utility;
 use crate::Renderer;
 use crate::VulkanObject;
 

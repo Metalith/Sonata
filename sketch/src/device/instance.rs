@@ -1,5 +1,5 @@
-use crate::utility;
-use crate::DebugMessenger;
+use crate::utility::utility;
+use crate::utility::DebugMessenger;
 use crate::Renderer;
 use crate::VulkanObject;
 
@@ -31,14 +31,13 @@ impl Instance {
 
         let app_name = CString::new("Hello world").unwrap(); // Generate this somewhere
         let engine_name = CString::new("No engine").unwrap();
-        let app_info = vk::ApplicationInfo {
-            p_application_name: app_name.as_ptr(),
-            application_version: vk_make_version!(0, 0, 1),
-            p_engine_name: engine_name.as_ptr(),
-            engine_version: vk_make_version!(0, 0, 1),
-            api_version: vk_make_version!(1, 1, 106),
-            ..Default::default()
-        };
+        let app_info = vk::ApplicationInfo::builder()
+            .application_name(&app_name)
+            .application_version(vk_make_version!(0, 0, 1))
+            .engine_name(&engine_name)
+            .engine_version(vk_make_version!(0, 0, 1))
+            .api_version(vk_make_version!(1, 1, 106))
+            .build();
 
         let (_names, validation_layers) = DebugMessenger::get_validation_layers_vk();
 

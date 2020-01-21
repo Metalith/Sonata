@@ -1,6 +1,6 @@
 use wind::System;
 
-use sketch::vertex::Vertex;
+use sketch::model::Vertex;
 
 use winit::window::Window;
 
@@ -28,7 +28,7 @@ impl<'a> RenderSystem<'a> {
             },
             Vertex {
                 pos: [-0.5f32, 0.5f32],
-                color: [1.0f32, 1.0f32, 1.0f32],
+                color: [0.0f32, 0.0f32, 1.0f32],
             },
         ];
         let renderer = sketch::Renderer::new(win, b, &vertices);

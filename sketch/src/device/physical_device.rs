@@ -1,8 +1,8 @@
-use crate::utility;
-use crate::QueueFamily;
+use super::QueueFamily;
+use super::Surface;
+use crate::renderpass::SwapChain;
+use crate::utility::utility;
 use crate::Renderer;
-use crate::Surface;
-use crate::SwapChain;
 use crate::VulkanObject;
 
 use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk, Instance};

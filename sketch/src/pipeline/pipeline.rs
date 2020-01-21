@@ -1,8 +1,8 @@
-use crate::shader;
-use crate::RenderPass;
+use super::shader;
+use crate::model::Vertex;
+use crate::renderpass::RenderPass;
+use crate::renderpass::SwapChain;
 use crate::Renderer;
-use crate::SwapChain;
-use crate::Vertex;
 use crate::VulkanObject;
 
 use ash::{version::DeviceV1_0, vk, Device};

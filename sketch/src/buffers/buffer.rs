@@ -1,6 +1,6 @@
-use crate::PhysicalDevice;
+use crate::device::PhysicalDevice;
+use crate::model::Vertex;
 use crate::Renderer;
-use crate::Vertex;
 use crate::VulkanObject;
 
 use ash::{version::DeviceV1_0, vk, Device};

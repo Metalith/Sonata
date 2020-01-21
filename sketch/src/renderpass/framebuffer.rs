@@ -1,6 +1,6 @@
-use crate::RenderPass;
+use super::RenderPass;
+use super::SwapChain;
 use crate::Renderer;
-use crate::SwapChain;
 use crate::VulkanObject;
 
 use ash::{version::DeviceV1_0, vk, Device};

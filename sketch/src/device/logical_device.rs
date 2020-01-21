@@ -1,6 +1,6 @@
-use crate::utility;
-use crate::DebugMessenger;
-use crate::PhysicalDevice;
+use super::PhysicalDevice;
+use crate::utility::utility;
+use crate::utility::DebugMessenger;
 use crate::Renderer;
 use crate::VulkanObject;
 

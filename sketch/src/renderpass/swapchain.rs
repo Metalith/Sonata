@@ -1,6 +1,6 @@
-use crate::PhysicalDevice;
+use crate::device::PhysicalDevice;
+use crate::device::Surface;
 use crate::Renderer;
-use crate::Surface;
 use crate::VulkanObject;
 
 use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Instance};

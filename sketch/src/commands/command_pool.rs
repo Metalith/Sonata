@@ -1,4 +1,4 @@
-use crate::PhysicalDevice;
+use crate::device::PhysicalDevice;
 use crate::Renderer;
 use crate::VulkanObject;
 

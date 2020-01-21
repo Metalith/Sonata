@@ -1,4 +1,4 @@
-use crate::CommandPool;
+use super::CommandPool;
 use crate::Renderer;
 use crate::VulkanObject;
 
