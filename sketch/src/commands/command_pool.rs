@@ -1,5 +1,5 @@
 use crate::device::PhysicalDevice;
-use crate::Renderer;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{version::DeviceV1_0, vk, Device};
@@ -10,7 +10,10 @@ pub struct CommandPool {
 
 impl CommandPool {
     pub fn new(device: &Device, physical_device: &PhysicalDevice) -> Self {
-        let pool_info = vk::CommandPoolCreateInfo::builder().queue_family_index(*physical_device.graphics_index()).build();
+        let pool_info = vk::CommandPoolCreateInfo::builder()
+            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+            .queue_family_index(*physical_device.graphics_index())
+            .build();
 
         let command_pool = unsafe { device.create_command_pool(&pool_info, None).unwrap() };
 
@@ -25,9 +28,9 @@ impl VulkanObject for CommandPool {
         &self.command_pool
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
+    fn cleanup(&self, _context: &GraphicContext) {
         unsafe {
-            _renderer.get_device().destroy_command_pool(self.command_pool, None);
+            _context.get_device().destroy_command_pool(self.command_pool, None);
         }
     }
 }

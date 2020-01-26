@@ -1,6 +1,6 @@
 use crate::utility::utility;
 use crate::utility::DebugMessenger;
-use crate::Renderer;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{
@@ -83,9 +83,9 @@ impl VulkanObject for Instance {
         &self.instance
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
+    fn cleanup(&self, _context: &GraphicContext) {
         unsafe {
-            self.debug_messenger.cleanup(_renderer);
+            self.debug_messenger.cleanup(_context);
             self.instance.destroy_instance(None);
         }
     }

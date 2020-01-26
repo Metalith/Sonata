@@ -1,5 +1,5 @@
 use super::SwapChain;
-use crate::Renderer;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{version::DeviceV1_0, vk, Device};
@@ -49,9 +49,9 @@ impl VulkanObject for RenderPass {
         &self.render_pass
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
+    fn cleanup(&self, _context: &GraphicContext) {
         unsafe {
-            _renderer.get_device().destroy_render_pass(self.render_pass, None);
+            _context.get_device().destroy_render_pass(self.render_pass, None);
         }
     }
 }

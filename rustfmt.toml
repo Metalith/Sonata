@@ -2,3 +2,4 @@
 "version" = "Two"
 "combine_control_expr" = false
 "max_width" = 200
+"merge_imports" = true

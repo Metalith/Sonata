@@ -1,5 +1,5 @@
 use crate::utility::utility;
-use crate::Renderer;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{version::EntryV1_0, vk, Entry, Instance};
@@ -102,7 +102,7 @@ impl VulkanObject for DebugMessenger {
         &self.debug_messenger
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
+    fn cleanup(&self, _context: &GraphicContext) {
         if self.validation_enabled {
             unsafe {
                 self.debug_loader.destroy_debug_utils_messenger(self.debug_messenger, None);

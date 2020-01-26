@@ -2,7 +2,7 @@ use super::QueueFamily;
 use super::Surface;
 use crate::renderpass::SwapChain;
 use crate::utility::utility;
-use crate::Renderer;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk, Instance};
@@ -130,5 +130,5 @@ impl VulkanObject for PhysicalDevice {
         &self.physical_device
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {}
+    fn cleanup(&self, _context: &GraphicContext) {}
 }

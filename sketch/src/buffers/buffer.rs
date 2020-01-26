@@ -1,6 +1,6 @@
 use crate::device::PhysicalDevice;
 use crate::model::Vertex;
-use crate::Renderer;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{version::DeviceV1_0, vk, Device};
@@ -68,10 +68,10 @@ impl VulkanObject for Buffer {
         &self.buffer
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
+    fn cleanup(&self, _context: &GraphicContext) {
         unsafe {
-            _renderer.get_device().destroy_buffer(self.buffer, None);
-            _renderer.get_device().free_memory(self.buffer_memory, None);
+            _context.get_device().destroy_buffer(self.buffer, None);
+            _context.get_device().free_memory(self.buffer_memory, None);
         }
     }
 }

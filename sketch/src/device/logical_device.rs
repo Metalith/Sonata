@@ -1,7 +1,7 @@
 use super::PhysicalDevice;
 use crate::utility::utility;
 use crate::utility::DebugMessenger;
-use crate::Renderer;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{
@@ -64,7 +64,7 @@ impl VulkanObject for LogicalDevice {
         &self.logical_device
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
+    fn cleanup(&self, _context: &GraphicContext) {
         unsafe {
             self.logical_device.destroy_device(None);
         }

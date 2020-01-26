@@ -1,6 +1,7 @@
 use crate::device::PhysicalDevice;
 use crate::device::Surface;
-use crate::Renderer;
+use crate::device::Window;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Instance};
@@ -15,12 +16,12 @@ pub struct SwapChain {
 }
 
 impl SwapChain {
-    pub fn new<T: Fn() -> (u32, u32)>(instance: &Instance, logical_device: &Device, physical_device: &PhysicalDevice, surface: &Surface, win_size_cb: &T) -> Self {
+    pub fn new(instance: &Instance, logical_device: &Device, physical_device: &PhysicalDevice, surface: &Surface, window: &Window) -> Self {
         let swapchain_support = Self::query_support(*physical_device.vulkan_object(), surface);
 
         let surface_format = Self::choose_surface_format(swapchain_support.formats);
         let present_mode = Self::choose_present_mode(swapchain_support.present_modes);
-        let extent = Self::choose_extent(swapchain_support.capabilities, win_size_cb);
+        let extent = Self::choose_extent(swapchain_support.capabilities, window);
 
         let mut image_count = swapchain_support.capabilities.min_image_count + 1;
         if swapchain_support.capabilities.min_image_count > 0 && image_count > swapchain_support.capabilities.max_image_count {
@@ -120,16 +121,31 @@ impl SwapChain {
         availabe_present_modes[0]
     }
 
-    pub fn choose_extent<T: Fn() -> (u32, u32)>(capabilities: vk::SurfaceCapabilitiesKHR, win_size_cb: &T) -> vk::Extent2D {
+    pub fn choose_extent(capabilities: vk::SurfaceCapabilitiesKHR, window: &Window) -> vk::Extent2D {
         if capabilities.current_extent.width != std::u32::MAX {
             return capabilities.current_extent;
         } else {
-            let (width, height) = win_size_cb();
+            let (width, height) = window.get_window_size();
             vk::Extent2D {
                 width: width.max(capabilities.min_image_extent.width).min(capabilities.max_image_extent.width),
                 height: height.max(capabilities.min_image_extent.height).min(capabilities.max_image_extent.height),
             }
         }
+    }
+
+    pub fn scissor(&self) -> vk::Rect2D {
+        vk::Rect2D::builder().offset(vk::Offset2D { x: 0, y: 0 }).extent(*self.extent()).build()
+    }
+
+    pub fn viewport(&self) -> vk::Viewport {
+        vk::Viewport::builder()
+            .x(0f32)
+            .y(0f32)
+            .width(self.extent().width as f32)
+            .height(self.extent().height as f32)
+            .min_depth(0f32)
+            .max_depth(1f32)
+            .build()
     }
 
     pub fn extent(&self) -> &vk::Extent2D {
@@ -160,10 +176,10 @@ impl VulkanObject for SwapChain {
         &self.swapchain
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
+    fn cleanup(&self, _context: &GraphicContext) {
         unsafe {
             for &image_view in self.image_views.iter() {
-                _renderer.get_device().destroy_image_view(image_view, None);
+                _context.get_device().destroy_image_view(image_view, None);
             }
             self.swapchain_loader.destroy_swapchain(self.swapchain, None);
         }

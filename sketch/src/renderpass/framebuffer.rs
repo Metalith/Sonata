@@ -1,6 +1,6 @@
 use super::RenderPass;
 use super::SwapChain;
-use crate::Renderer;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{version::DeviceV1_0, vk, Device};
@@ -38,10 +38,10 @@ impl VulkanObject for FrameBuffer {
         &self.framebuffers
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
+    fn cleanup(&self, _context: &GraphicContext) {
         unsafe {
             for &framebuffer in self.framebuffers.iter() {
-                _renderer.get_device().destroy_framebuffer(framebuffer, None);
+                _context.get_device().destroy_framebuffer(framebuffer, None);
             }
         }
     }

@@ -1,7 +1,7 @@
 use super::shader;
 use crate::model::Vertex;
 use crate::renderpass::RenderPass;
-use crate::Renderer;
+use crate::GraphicContext;
 use crate::VulkanObject;
 
 use ash::{version::DeviceV1_0, vk, Device};
@@ -99,10 +99,10 @@ impl VulkanObject for Pipeline {
         &self.pipeline
     }
 
-    fn cleanup(&self, _renderer: &Renderer) {
+    fn cleanup(&self, _context: &GraphicContext) {
         unsafe {
-            _renderer.get_device().destroy_pipeline(self.pipeline, None);
-            _renderer.get_device().destroy_pipeline_layout(self.pipeline_layout, None);
+            _context.get_device().destroy_pipeline(self.pipeline, None);
+            _context.get_device().destroy_pipeline_layout(self.pipeline_layout, None);
         }
     }
 }
