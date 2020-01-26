@@ -1,6 +1,6 @@
 [package]
 name = "sketch"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["Caleb Daniels <CJordanDaniels@gmail.com>"]
 edition = "2018"
 
