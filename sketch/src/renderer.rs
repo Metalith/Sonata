@@ -3,9 +3,13 @@ use crate::graphic_context::GraphicContext;
 use crate::model::Model;
 use crate::model::Vertex;
 
+use std::time::Instant;
+
 pub struct Renderer<'a> {
     graphic_context: GraphicContext<'a>,
     models: Vec<Model>,
+    fps_timer: Instant,
+    fps_counter: u32
 }
 
 impl<'a> Renderer<'a> {
@@ -14,6 +18,8 @@ impl<'a> Renderer<'a> {
         Renderer {
             graphic_context: graphic_context,
             models: Vec::new(),
+            fps_timer: Instant::now(),
+            fps_counter: 0
         }
     }
 
@@ -49,6 +55,14 @@ impl<'a> Renderer<'a> {
         };
 
         self.graphic_context.sync_objects.increment_frame();
+        self.fps_counter += 1;
+
+        let new_now = Instant::now();
+        if new_now.duration_since(self.fps_timer).as_secs() > 0 {
+            debug!("FPS: {:?}", self.fps_counter);
+            self.fps_timer = new_now;
+            self.fps_counter = 0;
+        }
     }
 }
 
