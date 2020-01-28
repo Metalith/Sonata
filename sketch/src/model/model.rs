@@ -1,6 +1,5 @@
 use super::Vertex;
-use crate::buffers::Buffer;
-use crate::device::PhysicalDevice;
+use crate::buffers::VertexBuffer;
 use crate::GraphicContext;
 use crate::VulkanObject;
 
@@ -8,12 +7,12 @@ use ash::{version::DeviceV1_0, vk, Device};
 
 pub struct Model {
     vertices: Vec<Vertex>,
-    vertex_buffer: Buffer,
+    vertex_buffer: VertexBuffer,
 }
 
 impl Model {
-    pub fn new(vertices: &[Vertex], device: &Device, physical_device: &PhysicalDevice) -> Model {
-        let buffer = Buffer::new(vertices, device, &physical_device);
+    pub fn new(vertices: &[Vertex], context: &GraphicContext) -> Model {
+        let buffer = VertexBuffer::new(vertices, context);
 
         Model {
             vertices: vertices.to_vec(),

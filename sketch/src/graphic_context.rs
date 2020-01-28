@@ -63,7 +63,15 @@ impl<'a> GraphicContext<'a> {
     }
 
     pub fn create_model(&self, vertices: &[Vertex]) -> Model {
-        Model::new(vertices, self.get_device(), &self.physical_device)
+        Model::new(vertices, &self)
+    }
+
+    pub fn get_logical_device(&self) -> &LogicalDevice {
+        &self.logical_device
+    }
+
+    pub fn get_physical_device(&self) -> &PhysicalDevice {
+        &self.physical_device
     }
 
     pub fn get_device(&self) -> &Device {
