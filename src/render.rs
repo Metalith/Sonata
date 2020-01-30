@@ -19,37 +19,42 @@ impl<'a> RenderSystem<'a> {
 
         let vertices = [
             Vertex {
-                pos: [0.5f32, -0.5f32],
-                color: [1.0f32, 1.0f32, 1.0f32],
-            },
-            Vertex {
-                pos: [0.5f32, 0.5f32],
-                color: [0.0f32, 1.0f32, 0.0f32],
-            },
-            Vertex {
-                pos: [-0.5f32, 0.5f32],
-                color: [0.0f32, 0.0f32, 1.0f32],
-            },
-        ];
-
-        let vertices2 = [
-            Vertex {
                 pos: [-0.5f32, -0.5f32],
                 color: [1.0f32, 0.0f32, 0.0f32],
             },
             Vertex {
                 pos: [0.5f32, -0.5f32],
-                color: [1.0f32, 1.0f32, 1.0f32],
+                color: [0.0f32, 1.0f32, 0.0f32],
+            },
+            Vertex {
+                pos: [0.5f32, 0.5f32],
+                color: [0.0f32, 0.0f32, 1.0f32],
             },
             Vertex {
                 pos: [-0.5f32, 0.5f32],
+                color: [1.0f32, 1.0f32, 1.0f32],
+            },
+        ];
+        let indices: [u16; 6] = [0, 1, 2, 2, 3, 0];
+
+        let vertices2 = [
+            Vertex {
+                pos: [-1f32, -1f32],
+                color: [1.0f32, 0.0f32, 0.0f32],
+            },
+            Vertex {
+                pos: [-0.5f32, -1f32],
+                color: [1.0f32, 1.0f32, 1.0f32],
+            },
+            Vertex {
+                pos: [-1f32, -0.5f32],
                 color: [0.0f32, 0.0f32, 1.0f32],
             },
         ];
 
         let mut renderer = sketch::Renderer::new(win.hwnd(), win.hinstance(), b);
-        renderer.add_model(&vertices);
-        renderer.add_model(&vertices2);
+        renderer.add_model(&vertices, Some(&indices));
+        renderer.add_model(&vertices2, None);
         RenderSystem { renderer: RefCell::new(renderer) }
     }
 }

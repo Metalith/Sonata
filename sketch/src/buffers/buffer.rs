@@ -43,12 +43,12 @@ impl Buffer {
         panic!("Failed to find suitable memory");
     }
 
-    pub fn map_memory<T: Copy>(&self, vertices: &[T], context: &GraphicContext) {
+    pub fn map_memory<A, T: Copy>(&self, vertices: &[T], context: &GraphicContext) {
         let size = vk::DeviceSize::from(std::mem::size_of_val(vertices) as u64);
         unsafe {
             let data_ptr = context.get_device().map_memory(self.buffer_memory, 0, size, vk::MemoryMapFlags::empty()).unwrap();
 
-            let mut align = ash::util::Align::new(data_ptr, std::mem::align_of::<u32>() as _, size);
+            let mut align = ash::util::Align::new(data_ptr, std::mem::align_of::<A>() as _, size);
             align.copy_from_slice(vertices);
 
             context.get_device().unmap_memory(self.buffer_memory);

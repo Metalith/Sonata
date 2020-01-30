@@ -62,8 +62,8 @@ impl<'a> GraphicContext<'a> {
         }
     }
 
-    pub fn create_model(&self, vertices: &[Vertex]) -> Model {
-        Model::new(vertices, &self)
+    pub fn create_model(&self, vertices: &[Vertex], indices: Option<&[u16]>) -> Model {
+        Model::new(vertices, indices, &self)
     }
 
     pub fn get_logical_device(&self) -> &LogicalDevice {

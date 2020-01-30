@@ -9,7 +9,7 @@ pub struct Renderer<'a> {
     graphic_context: GraphicContext<'a>,
     models: Vec<Model>,
     fps_timer: Instant,
-    fps_counter: u32
+    fps_counter: u32,
 }
 
 impl<'a> Renderer<'a> {
@@ -19,12 +19,12 @@ impl<'a> Renderer<'a> {
             graphic_context: graphic_context,
             models: Vec::new(),
             fps_timer: Instant::now(),
-            fps_counter: 0
+            fps_counter: 0,
         }
     }
 
-    pub fn add_model(&mut self, vertices: &[Vertex]) {
-        self.models.push(self.graphic_context.create_model(vertices));
+    pub fn add_model(&mut self, vertices: &[Vertex], indices: Option<&[u16]>) {
+        self.models.push(self.graphic_context.create_model(vertices, indices));
     }
 
     pub fn draw_frame(&mut self) {
