@@ -42,6 +42,8 @@ impl<'a> Renderer<'a> {
             Ok(i) => i,
         };
 
+        self.graphic_context.update_uniforms(image_index);
+
         self.graphic_context.sync_objects.wait_fence_image(self.graphic_context.get_device(), image_index);
 
         self.graphic_context.begin_command_buffer(image_index);

@@ -8,7 +8,7 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-winit = "0.20.0"
+winit = "0.22.0"
 log = "0.4.8"
 env_logger = "0.7.1"
 sketch = { path = "sketch", version = "0.1.0" }

@@ -10,7 +10,8 @@ description = "Vulkan rendering system"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-ash = "0.29.0"
+ash = "0.30.0"
 log = "0.4.8"
-memoffset = "0.5.3"
+memoffset = "0.5.4"
+cgmath = "0.17.0"
 wind = { path = "../wind", version = "0.0.1" }

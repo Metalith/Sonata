@@ -1,17 +1,21 @@
 use crate::VulkanObject;
 
+use crate::buffers::UniformBufferObject;
 use crate::commands::{CommandBuffer, CommandPool};
 use crate::device::window::{HINSTANCE, HWND};
 use crate::device::Window;
 use crate::device::{Instance, LogicalDevice, PhysicalDevice, Surface};
 use crate::model::Model;
 use crate::model::Vertex;
-use crate::pipeline::Pipeline;
+use crate::pipeline::{DescriptorLayout, DescriptorPool, DescriptorSet, Pipeline};
 use crate::renderpass::{FrameBuffer, RenderPass, SwapChain};
 use crate::sync::SyncObjects;
 use crate::utility::constants::*;
 
 use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Entry};
+
+use cgmath::{Deg, Matrix4, Point3, Rad, Vector3};
+use std::time::Instant;
 
 pub struct GraphicContext<'a> {
     _entry: Entry,
@@ -27,6 +31,11 @@ pub struct GraphicContext<'a> {
     command_buffers: CommandBuffer,
     pub sync_objects: SyncObjects,
     window: Window<'a>,
+    start_time: Instant,
+    uniform_buffers: Vec<UniformBufferObject>,
+    descriptor_layout: DescriptorLayout,
+    descriptor_pool: DescriptorPool,
+    descriptor_set: DescriptorSet,
 }
 
 impl<'a> GraphicContext<'a> {
@@ -39,11 +48,21 @@ impl<'a> GraphicContext<'a> {
         let logical_device = LogicalDevice::new(instance.vulkan_object(), &physical_device);
         let swapchain = SwapChain::new(instance.vulkan_object(), logical_device.vulkan_object(), &physical_device, &surface, &window);
         let render_pass = RenderPass::new(logical_device.vulkan_object(), &swapchain);
-        let pipeline = Pipeline::new(logical_device.vulkan_object(), &render_pass);
+        let descriptor_layout = DescriptorLayout::new(logical_device.vulkan_object());
+        let pipeline = Pipeline::new(logical_device.vulkan_object(), &render_pass, *descriptor_layout.vulkan_object());
         let framebuffer = FrameBuffer::new(logical_device.vulkan_object(), &swapchain, &render_pass);
         let command_pool = CommandPool::new(logical_device.vulkan_object(), &physical_device);
         let command_buffers = CommandBuffer::new(logical_device.vulkan_object(), &command_pool, framebuffer.vulkan_object().len() as u32);
         let sync_objects = SyncObjects::new(logical_device.vulkan_object(), MAX_FRAMES_IN_FLIGHT, swapchain.images().len());
+        let start_time = Instant::now();
+
+        let mut u_buffers = Vec::new();
+        for _ in 0..swapchain.images().len() {
+            u_buffers.push(UniformBufferObject::new(logical_device.vulkan_object(), &physical_device));
+        }
+
+        let descriptor_pool = DescriptorPool::new(logical_device.vulkan_object(), swapchain.images().len() as u32);
+        let descriptor_set = DescriptorSet::new(logical_device.vulkan_object(), *descriptor_layout.vulkan_object(), swapchain.images().len() as u32, &descriptor_pool, &u_buffers);
 
         GraphicContext {
             _entry: entry,
@@ -59,6 +78,11 @@ impl<'a> GraphicContext<'a> {
             command_buffers: command_buffers,
             sync_objects: sync_objects,
             window: window,
+            start_time: start_time,
+            uniform_buffers: u_buffers,
+            descriptor_layout: descriptor_layout,
+            descriptor_pool: descriptor_pool,
+            descriptor_set: descriptor_set,
         }
     }
 
@@ -90,6 +114,10 @@ impl<'a> GraphicContext<'a> {
         self.command_pool.vulkan_object()
     }
 
+    pub fn get_image_count(&self) -> usize {
+        self.swapchain.images().len()
+    }
+
     pub fn wait_device(&self) {
         unsafe { self.get_device().device_wait_idle().unwrap() };
     }
@@ -116,6 +144,12 @@ impl<'a> GraphicContext<'a> {
         self.command_buffers.cleanup(self);
         self.render_pass.cleanup(self);
         self.swapchain.cleanup(self);
+
+        for ubuffer in self.uniform_buffers.iter() {
+            ubuffer.cleanup(self);
+        }
+
+        self.descriptor_pool.cleanup(self);
     }
 
     pub fn recreate_swapchain(&mut self) {
@@ -126,6 +160,12 @@ impl<'a> GraphicContext<'a> {
         self.swapchain = SwapChain::new(self.instance.vulkan_object(), self.get_device(), &self.physical_device, &self.surface, &self.window);
         self.render_pass = RenderPass::new(self.get_device(), &self.swapchain);
         self.frame_buffers = FrameBuffer::new(self.get_device(), &self.swapchain, &self.render_pass);
+        self.uniform_buffers = Vec::new();
+        for _ in 0..self.swapchain.images().len() {
+            self.uniform_buffers.push(UniformBufferObject::new(self.get_device(), &self.physical_device));
+        }
+        self.descriptor_pool = DescriptorPool::new(self.get_device(), self.get_image_count() as u32);
+        self.descriptor_set = DescriptorSet::new(self.get_device(), *self.descriptor_layout.vulkan_object(), self.get_image_count() as u32, &self.descriptor_pool, &self.uniform_buffers);
         self.command_buffers = CommandBuffer::new(self.get_device(), &self.command_pool, self.frame_buffers.vulkan_object().len() as u32);
     }
 
@@ -141,8 +181,16 @@ impl<'a> GraphicContext<'a> {
             .clear_values(&[clear_color])
             .build();
 
-        self.command_buffers
-            .begin(image_index, self.get_device(), &render_pass_info, self.swapchain.viewport(), self.swapchain.scissor(), self.pipeline.vulkan_object());
+        self.command_buffers.begin(
+            image_index,
+            self.get_device(),
+            &render_pass_info,
+            self.swapchain.viewport(),
+            self.swapchain.scissor(),
+            self.pipeline.vulkan_object(),
+            self.pipeline.get_layout(),
+            &self.descriptor_set.vulkan_object()[image_index..=image_index],
+        );
     }
 
     pub fn end_command_buffer(&self, image_index: usize) {
@@ -192,8 +240,25 @@ impl<'a> GraphicContext<'a> {
         Ok(())
     }
 
+    pub fn update_uniforms(&self, image_index: usize) {
+        let time = Instant::now().duration_since(self.start_time).as_secs();
+
+        let aspect = self.swapchain.extent().width as f32 / self.swapchain.extent().height as f32;
+
+        let model = Matrix4::from_angle_z(Rad::from(Deg(time as f32 * 0.180)));
+
+        let view = Matrix4::look_at(Point3::new(2.0, 2.0, 2.0), Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
+
+        let mut proj = cgmath::perspective(Rad::from(Deg(45.0)), aspect, 0.1, 10.0);
+
+        proj.y.y *= -1.0;
+
+        self.uniform_buffers[image_index].update(self, model, view, proj);
+    }
+
     pub fn cleanup(&self) {
         self.cleanup_swapchain();
+        self.descriptor_layout.cleanup(self);
         self.sync_objects.cleanup(self);
         self.command_pool.cleanup(self);
         self.pipeline.cleanup(self);

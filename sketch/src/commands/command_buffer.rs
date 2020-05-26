@@ -21,7 +21,17 @@ impl CommandBuffer {
         CommandBuffer { command_buffers: command_buffers }
     }
 
-    pub fn begin(&self, index: usize, device: &Device, render_pass_info: &vk::RenderPassBeginInfo, viewport: vk::Viewport, scissor: vk::Rect2D, pipeline: &vk::Pipeline) {
+    pub fn begin(
+        &self,
+        index: usize,
+        device: &Device,
+        render_pass_info: &vk::RenderPassBeginInfo,
+        viewport: vk::Viewport,
+        scissor: vk::Rect2D,
+        pipeline: &vk::Pipeline,
+        pipeline_layout: &vk::PipelineLayout,
+        descriptor_sets: &[vk::DescriptorSet],
+    ) {
         let begin_info = vk::CommandBufferBeginInfo::default();
         unsafe {
             device.begin_command_buffer(self.command_buffers[index], &begin_info).unwrap();
@@ -29,6 +39,10 @@ impl CommandBuffer {
             device.cmd_bind_pipeline(self.command_buffers[index], vk::PipelineBindPoint::GRAPHICS, *pipeline); //TODO: Remove this
             device.cmd_set_viewport(self.command_buffers[index], 0, &[viewport]);
             device.cmd_set_scissor(self.command_buffers[index], 0, &[scissor]);
+
+            let null = [];
+
+            device.cmd_bind_descriptor_sets(self.command_buffers[index], vk::PipelineBindPoint::GRAPHICS, *pipeline_layout, 0, descriptor_sets, &null);
         };
     }
 

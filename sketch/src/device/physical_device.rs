@@ -70,7 +70,7 @@ impl PhysicalDevice {
                     graphics_index = Some(queue_family.index);
                 }
 
-                if present_index.is_none() && unsafe { surface.get_loader().get_physical_device_surface_support(device, queue_family.index, *surface.vulkan_object()) } {
+                if present_index.is_none() && unsafe { surface.get_loader().get_physical_device_surface_support(device, queue_family.index, *surface.vulkan_object()).unwrap() } {
                     present_index = Some(queue_family.index)
                 }
             }

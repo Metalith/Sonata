@@ -1,7 +1,8 @@
 use crate::GraphicContext;
 use crate::VulkanObject;
+use crate::device::PhysicalDevice;
 
-use ash::{version::DeviceV1_0, vk};
+use ash::{version::DeviceV1_0, vk, Device};
 
 pub struct Buffer {
     buffer: vk::Buffer,
@@ -9,22 +10,22 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new(size: vk::DeviceSize, usage: vk::BufferUsageFlags, properties: vk::MemoryPropertyFlags, context: &GraphicContext) -> Self {
+    pub fn new(size: vk::DeviceSize, usage: vk::BufferUsageFlags, properties: vk::MemoryPropertyFlags, logical_device: &Device, physical_device: &PhysicalDevice) -> Self {
         let info = vk::BufferCreateInfo::builder().size(size).usage(usage).sharing_mode(vk::SharingMode::EXCLUSIVE).build();
 
-        let buffer = unsafe { context.get_device().create_buffer(&info, None).unwrap() };
+        let buffer = unsafe { logical_device.create_buffer(&info, None).unwrap() };
 
-        let mem_requirements = unsafe { context.get_device().get_buffer_memory_requirements(buffer) };
+        let mem_requirements = unsafe { logical_device.get_buffer_memory_requirements(buffer) };
 
         let alloc_info = vk::MemoryAllocateInfo::builder()
             .allocation_size(mem_requirements.size)
-            .memory_type_index(Buffer::find_memory_type(mem_requirements.memory_type_bits, properties, context.get_physical_device().get_mem_properties()))
+            .memory_type_index(Buffer::find_memory_type(mem_requirements.memory_type_bits, properties, physical_device.get_mem_properties()))
             .build();
 
-        let buffer_memory = unsafe { context.get_device().allocate_memory(&alloc_info, None).unwrap() };
+        let buffer_memory = unsafe { logical_device.allocate_memory(&alloc_info, None).unwrap() };
 
         unsafe {
-            context.get_device().bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
+            logical_device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
         }
 
         Buffer {

@@ -14,7 +14,7 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(device: &Device, render_pass: &RenderPass) -> Pipeline {
+    pub fn new(device: &Device, render_pass: &RenderPass, descriptor_layout: vk::DescriptorSetLayout) -> Pipeline {
         let vert_shader = shader::create_shader_module("assets/gen/shaders/shader.vert.spv", device).unwrap();
         let frag_shader = shader::create_shader_module("assets/gen/shaders/shader.frag.spv", device).unwrap();
 
@@ -43,7 +43,7 @@ impl Pipeline {
             .polygon_mode(vk::PolygonMode::FILL)
             .line_width(1f32)
             .cull_mode(vk::CullModeFlags::BACK)
-            .front_face(vk::FrontFace::CLOCKWISE)
+            .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
             .depth_bias_enable(false)
             .build();
 
@@ -57,7 +57,8 @@ impl Pipeline {
 
         let color_blending = vk::PipelineColorBlendStateCreateInfo::builder().logic_op_enable(false).attachments(&[color_blend_attachment]).build();
 
-        let pipeline_layout_info = vk::PipelineLayoutCreateInfo::default();
+        let set_layouts = [descriptor_layout];
+        let pipeline_layout_info = vk::PipelineLayoutCreateInfo::builder().set_layouts(&set_layouts).build();
 
         let pipeline_layout = unsafe { device.create_pipeline_layout(&pipeline_layout_info, None).unwrap() };
 
@@ -89,6 +90,10 @@ impl Pipeline {
             pipeline_layout: pipeline_layout,
             pipeline: pipeline,
         }
+    }
+
+    pub fn get_layout(&self) -> &vk::PipelineLayout {
+        &self.pipeline_layout
     }
 }
 

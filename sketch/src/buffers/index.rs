@@ -12,11 +12,11 @@ pub struct IndexBuffer {
 impl IndexBuffer {
     pub fn new(indices: &[u16], context: &GraphicContext) -> IndexBuffer {
         let buffer_size = std::mem::size_of_val(indices) as u64;
-        let staging_buffer = Buffer::new(buffer_size, vk::BufferUsageFlags::TRANSFER_SRC, vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT, context);
+        let staging_buffer = Buffer::new(buffer_size, vk::BufferUsageFlags::TRANSFER_SRC, vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT, context.get_device(), context.get_physical_device());
 
         staging_buffer.map_memory::<u16, _>(indices, context);
 
-        let index_buffer = Buffer::new(buffer_size, vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER, vk::MemoryPropertyFlags::DEVICE_LOCAL, context);
+        let index_buffer = Buffer::new(buffer_size, vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::INDEX_BUFFER, vk::MemoryPropertyFlags::DEVICE_LOCAL, context.get_device(), context.get_physical_device());
         Buffer::copy_buffer(*staging_buffer.vulkan_object(), *index_buffer.vulkan_object(), buffer_size, context);
         staging_buffer.cleanup(context);
 

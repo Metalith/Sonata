@@ -9,7 +9,7 @@ use ash::{
         khr::{Surface, Win32Surface},
     },
     version::{EntryV1_0, InstanceV1_0},
-    vk, vk_make_version, Entry,
+    vk, Entry,
 };
 
 use std::ffi::CString;
@@ -33,10 +33,10 @@ impl Instance {
         let engine_name = CString::new("No engine").unwrap();
         let app_info = vk::ApplicationInfo::builder()
             .application_name(&app_name)
-            .application_version(vk_make_version!(0, 0, 1))
+            .application_version(vk::make_version(0, 0, 1))
             .engine_name(&engine_name)
-            .engine_version(vk_make_version!(0, 0, 1))
-            .api_version(vk_make_version!(1, 1, 106))
+            .engine_version(vk::make_version(0, 0, 1))
+            .api_version(vk::make_version(1, 1, 106))
             .build();
 
         let (_names, validation_layers) = DebugMessenger::get_validation_layers_vk();
