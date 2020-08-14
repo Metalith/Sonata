@@ -9,9 +9,9 @@ use cgmath::Matrix4;
 #[derive(Copy, Clone)]
 #[allow(dead_code)]
 pub struct UniformTestObject {
-    model: Matrix4<f32>,
-    view: Matrix4<f32>,
-    proj: Matrix4<f32>,
+    pub model: Matrix4<f32>,
+    pub view: Matrix4<f32>,
+    pub proj: Matrix4<f32>,
 }
 
 impl UniformTestObject {
@@ -42,6 +42,10 @@ impl UniformBufferObject {
         let ubos = [ubo];
 
         self.buffer.map_memory::<f32, _>(&ubos, context);
+    }
+
+    pub fn update2<A, T: Copy>(&self, context: &GraphicContext, object: &[T]) {
+        self.buffer.map_memory::<f32, _>(object, context)
     }
 }
 

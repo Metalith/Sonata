@@ -1,6 +1,6 @@
+use crate::device::PhysicalDevice;
 use crate::GraphicContext;
 use crate::VulkanObject;
-use crate::device::PhysicalDevice;
 
 use ash::{version::DeviceV1_0, vk, Device};
 
@@ -44,13 +44,13 @@ impl Buffer {
         panic!("Failed to find suitable memory");
     }
 
-    pub fn map_memory<A, T: Copy>(&self, vertices: &[T], context: &GraphicContext) {
-        let size = vk::DeviceSize::from(std::mem::size_of_val(vertices) as u64);
+    pub fn map_memory<A, T: Copy>(&self, object: &[T], context: &GraphicContext) {
+        let size = vk::DeviceSize::from(std::mem::size_of_val(object) as u64);
         unsafe {
             let data_ptr = context.get_device().map_memory(self.buffer_memory, 0, size, vk::MemoryMapFlags::empty()).unwrap();
 
             let mut align = ash::util::Align::new(data_ptr, std::mem::align_of::<A>() as _, size);
-            align.copy_from_slice(vertices);
+            align.copy_from_slice(object);
 
             context.get_device().unmap_memory(self.buffer_memory);
         }

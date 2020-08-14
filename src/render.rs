@@ -2,20 +2,35 @@ use wind::System;
 
 use sketch::model::Vertex;
 
+use imgui::*;
+use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use winit::{platform::windows::WindowExtWindows, window::Window};
 
 use std::cell::RefCell;
 
 pub struct RenderSystem<'a> {
-    pub renderer: RefCell<sketch::Renderer<'a>>,
+    pub renderer: RefCell<sketch::Renderer>,
+    win: &'a Window,
+    pub imgui: RefCell<Context>,
+    platform: WinitPlatform,
 }
 
 impl<'a> RenderSystem<'a> {
     pub fn new(win: &'a Window) -> Self {
-        let b = Box::new(move || -> (u32, u32) {
-            let t = win.inner_size();
-            (t.width, t.height)
-        });
+        let mut imgui = Context::create();
+        // configure imgui-rs Context if necessary
+
+        let mut platform = WinitPlatform::init(&mut imgui); // step 1
+        platform.attach_window(imgui.io_mut(), &win, HiDpiMode::Default); // step 2
+        let hidpi_factor = platform.hidpi_factor();
+        let font_size = (13.0 * hidpi_factor) as f32;
+        imgui.fonts().add_font(&[FontSource::DefaultFontData {
+            config: Some(FontConfig {
+                size_pixels: font_size,
+                ..FontConfig::default()
+            }),
+        }]);
+        imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
 
         let vertices = [
             Vertex {
@@ -52,15 +67,37 @@ impl<'a> RenderSystem<'a> {
             },
         ];
 
-        let mut renderer = sketch::Renderer::new(win.hwnd(), win.hinstance(), b);
+        let mut renderer = sketch::Renderer::new(win.hwnd(), win.hinstance());
+
+        renderer.add_imgui_renderer(&mut imgui);
         renderer.add_model(&vertices, Some(&indices));
         renderer.add_model(&vertices2, None);
-        RenderSystem { renderer: RefCell::new(renderer) }
+
+        RenderSystem {
+            renderer: RefCell::new(renderer),
+            win: win,
+            imgui: RefCell::new(imgui),
+            platform: platform,
+        }
     }
 }
 
 impl<'a> System for RenderSystem<'a> {
     fn update(&self) {
-        self.renderer.borrow_mut().draw_frame();
+        let mut imgui = self.imgui.borrow_mut();
+        let ui = imgui.frame();
+
+        imgui::Window::new(im_str!("Hello world")).size([300.0, 100.0], Condition::FirstUseEver).build(&ui, || {
+            ui.text(im_str!("Hello world!"));
+            ui.text(im_str!("This...is...imgui-rs!"));
+            ui.separator();
+            let mouse_pos = ui.io().mouse_pos;
+            ui.text(format!("Mouse Position: ({:.1},{:.1})", mouse_pos[0], mouse_pos[1]));
+        });
+
+        self.platform.prepare_render(&ui, &self.win); // step 5
+        let draw_data = ui.render();
+
+        self.renderer.borrow_mut().draw_frame(Some(draw_data));
     }
 }

@@ -1,6 +1,6 @@
 use crate::VulkanObject;
 
-use crate::buffers::UniformBufferObject;
+use crate::buffers::{UniformBufferObject, UniformTestObject};
 use crate::commands::{CommandBuffer, CommandPool};
 use crate::device::window::{HINSTANCE, HWND};
 use crate::device::Window;
@@ -14,10 +14,12 @@ use crate::utility::constants::*;
 
 use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Entry};
 
+use imgui_rs_vulkan_renderer::RendererVkContext;
+
 use cgmath::{Deg, Matrix4, Point3, Rad, Vector3};
 use std::time::Instant;
 
-pub struct GraphicContext<'a> {
+pub struct GraphicContext {
     _entry: Entry,
     instance: Instance,
     surface: Surface,
@@ -30,7 +32,7 @@ pub struct GraphicContext<'a> {
     command_pool: CommandPool,
     command_buffers: CommandBuffer,
     pub sync_objects: SyncObjects,
-    window: Window<'a>,
+    window: Window,
     start_time: Instant,
     uniform_buffers: Vec<UniformBufferObject>,
     descriptor_layout: DescriptorLayout,
@@ -38,11 +40,11 @@ pub struct GraphicContext<'a> {
     descriptor_set: DescriptorSet,
 }
 
-impl<'a> GraphicContext<'a> {
-    pub fn new<T: Fn() -> (u32, u32) + 'a>(hwnd: HWND, hinstance: HINSTANCE, window_size_cb: T) -> GraphicContext<'a> {
+impl GraphicContext {
+    pub fn new(hwnd: HWND, hinstance: HINSTANCE) -> GraphicContext {
         let entry = Entry::new().unwrap();
         let instance = Instance::new(&entry);
-        let window = Window::new(window_size_cb);
+        let window = Window::new(hwnd);
         let surface = Surface::new(hwnd, hinstance, &entry, instance.vulkan_object());
         let physical_device = PhysicalDevice::new(instance.vulkan_object(), &surface);
         let logical_device = LogicalDevice::new(instance.vulkan_object(), &physical_device);
@@ -62,7 +64,13 @@ impl<'a> GraphicContext<'a> {
         }
 
         let descriptor_pool = DescriptorPool::new(logical_device.vulkan_object(), swapchain.images().len() as u32);
-        let descriptor_set = DescriptorSet::new(logical_device.vulkan_object(), *descriptor_layout.vulkan_object(), swapchain.images().len() as u32, &descriptor_pool, &u_buffers);
+        let descriptor_set = DescriptorSet::new(
+            logical_device.vulkan_object(),
+            *descriptor_layout.vulkan_object(),
+            swapchain.images().len() as u32,
+            &descriptor_pool,
+            &u_buffers,
+        );
 
         GraphicContext {
             _entry: entry,
@@ -90,6 +98,10 @@ impl<'a> GraphicContext<'a> {
         Model::new(vertices, indices, &self)
     }
 
+    pub fn get_instance(&self) -> &ash::Instance {
+        &self.instance.vulkan_object()
+    }
+
     pub fn get_logical_device(&self) -> &LogicalDevice {
         &self.logical_device
     }
@@ -97,7 +109,9 @@ impl<'a> GraphicContext<'a> {
     pub fn get_physical_device(&self) -> &PhysicalDevice {
         &self.physical_device
     }
-
+    pub fn get_vk_physical_device(&self) -> &vk::PhysicalDevice {
+        &self.physical_device.vulkan_object()
+    }
     pub fn get_device(&self) -> &Device {
         self.logical_device.vulkan_object()
     }
@@ -112,6 +126,10 @@ impl<'a> GraphicContext<'a> {
 
     pub fn get_command_pool(&self) -> &vk::CommandPool {
         self.command_pool.vulkan_object()
+    }
+
+    pub fn get_render_pass(&self) -> &vk::RenderPass {
+        self.render_pass.vulkan_object()
     }
 
     pub fn get_image_count(&self) -> usize {
@@ -165,13 +183,21 @@ impl<'a> GraphicContext<'a> {
             self.uniform_buffers.push(UniformBufferObject::new(self.get_device(), &self.physical_device));
         }
         self.descriptor_pool = DescriptorPool::new(self.get_device(), self.get_image_count() as u32);
-        self.descriptor_set = DescriptorSet::new(self.get_device(), *self.descriptor_layout.vulkan_object(), self.get_image_count() as u32, &self.descriptor_pool, &self.uniform_buffers);
+        self.descriptor_set = DescriptorSet::new(
+            self.get_device(),
+            *self.descriptor_layout.vulkan_object(),
+            self.get_image_count() as u32,
+            &self.descriptor_pool,
+            &self.uniform_buffers,
+        );
         self.command_buffers = CommandBuffer::new(self.get_device(), &self.command_pool, self.frame_buffers.vulkan_object().len() as u32);
     }
 
     pub fn begin_command_buffer(&self, image_index: usize) {
         let clear_color = vk::ClearValue {
-            color: vk::ClearColorValue { float32: [0.0f32, 0.1f32, 0.2f32, 1.0f32] },
+            color: vk::ClearColorValue {
+                float32: [0.0f32, 0.1f32, 0.2f32, 1.0f32],
+            },
         };
 
         let render_pass_info = vk::RenderPassBeginInfo::builder()
@@ -191,6 +217,10 @@ impl<'a> GraphicContext<'a> {
             self.pipeline.get_layout(),
             &self.descriptor_set.vulkan_object()[image_index..=image_index],
         );
+    }
+
+    pub fn get_command_buffer(&self, image_index: usize) -> &vk::CommandBuffer {
+        self.command_buffers.get(image_index)
     }
 
     pub fn end_command_buffer(&self, image_index: usize) {
@@ -213,7 +243,9 @@ impl<'a> GraphicContext<'a> {
 
         unsafe {
             self.get_device().reset_fences(&[self.sync_objects.get_flight_fence()]).unwrap();
-            self.get_device().queue_submit(*self.logical_device.graphics_queue(), &[submit_info], self.sync_objects.get_flight_fence()).unwrap();
+            self.get_device()
+                .queue_submit(*self.logical_device.graphics_queue(), &[submit_info], self.sync_objects.get_flight_fence())
+                .unwrap();
         };
     }
 
@@ -241,7 +273,7 @@ impl<'a> GraphicContext<'a> {
     }
 
     pub fn update_uniforms(&self, image_index: usize) {
-        let time = Instant::now().duration_since(self.start_time).as_secs();
+        let time = Instant::now().duration_since(self.start_time).as_millis();
 
         let aspect = self.swapchain.extent().width as f32 / self.swapchain.extent().height as f32;
 
@@ -253,7 +285,10 @@ impl<'a> GraphicContext<'a> {
 
         proj.y.y *= -1.0;
 
-        self.uniform_buffers[image_index].update(self, model, view, proj);
+        let ubo = UniformTestObject { model, view, proj };
+        let ubos = [ubo];
+
+        self.uniform_buffers[image_index].update2::<f32, _>(self, &ubos);
     }
 
     pub fn cleanup(&self) {
@@ -265,5 +300,27 @@ impl<'a> GraphicContext<'a> {
         self.logical_device.cleanup(self);
         self.surface.cleanup(self);
         self.instance.cleanup(self);
+    }
+}
+
+impl RendererVkContext for GraphicContext {
+    fn instance(&self) -> &ash::Instance {
+        &self.get_instance()
+    }
+
+    fn physical_device(&self) -> ash::vk::PhysicalDevice {
+        *self.get_vk_physical_device()
+    }
+
+    fn device(&self) -> &ash::Device {
+        &self.get_device()
+    }
+
+    fn queue(&self) -> vk::Queue {
+        *self.get_logical_device().graphics_queue()
+    }
+
+    fn command_pool(&self) -> vk::CommandPool {
+        *self.get_command_pool()
     }
 }

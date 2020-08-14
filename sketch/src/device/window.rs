@@ -2,22 +2,23 @@ pub type HWND = *mut std::ffi::c_void;
 pub type HINSTANCE = *mut std::ffi::c_void;
 
 use std::cell::Cell;
+use std::mem::zeroed;
 
-pub struct Window<'a> {
+pub struct Window {
     window_size: Cell<(u32, u32)>,
-    window_size_cb: Box<dyn Fn() -> (u32, u32) + 'a>,
+    hwnd: HWND,
 }
 
-impl<'a> Window<'a> {
-    pub fn new<T: Fn() -> (u32, u32) + 'a>(window_size_cb: T) -> Window<'a> {
+impl Window {
+    pub fn new(hwnd: HWND) -> Window {
         Window {
-            window_size: Cell::new(window_size_cb()),
-            window_size_cb: Box::new(window_size_cb),
+            window_size: Cell::new(get_window_size(hwnd)),
+            hwnd: hwnd,
         }
     }
 
     pub fn get_window_size(&self) -> (u32, u32) {
-        (*self.window_size_cb)()
+        get_window_size(self.hwnd)
     }
 
     pub fn window_is_minimized(&self) -> bool {
@@ -28,5 +29,15 @@ impl<'a> Window<'a> {
         let res = self.window_size.get() != self.get_window_size();
         self.window_size.set(self.get_window_size());
         res
+    }
+}
+
+fn get_window_size(hwnd: HWND) -> (u32, u32) {
+    unsafe {
+        let mut rect = zeroed::<winapi::shared::windef::RECT>();
+
+        winapi::um::winuser::GetWindowRect(hwnd as *mut winapi::shared::windef::HWND__, &mut rect);
+
+        ((rect.right - rect.left).abs() as u32, (rect.bottom - rect.top).abs() as u32)
     }
 }

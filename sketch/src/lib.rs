@@ -1,11 +1,12 @@
 #[macro_use]
 extern crate log;
-extern crate cgmath;
 extern crate ash;
+extern crate cgmath;
+extern crate winapi;
 
 mod buffers;
 mod commands;
-mod device;
+pub mod device;
 mod graphic_context;
 pub mod model;
 mod pipeline;
@@ -14,10 +15,10 @@ mod renderpass;
 mod sync;
 mod utility;
 
-use graphic_context::GraphicContext;
+pub use graphic_context::GraphicContext;
 pub use renderer::Renderer;
 
-trait VulkanObject {
+pub trait VulkanObject {
     type Object;
     fn vulkan_object(&self) -> &Self::Object;
     fn cleanup(&self, _context: &GraphicContext);
