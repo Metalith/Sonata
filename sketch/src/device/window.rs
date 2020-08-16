@@ -21,8 +21,8 @@ impl Window {
         get_window_size(self.hwnd)
     }
 
-    pub fn window_is_minimized(&self) -> bool {
-        self.get_window_size() == (0, 0)
+    pub fn is_window_visible(&self) -> bool {
+        unsafe { (winapi::um::winuser::GetWindowLongA(self.hwnd as *mut winapi::shared::windef::HWND__, winapi::um::winuser::GWL_STYLE) as u32 & winapi::um::winuser::WS_MINIMIZE) == 0 }
     }
 
     pub fn has_window_resized(&self) -> bool {
