@@ -41,7 +41,7 @@ impl Renderer {
     pub fn draw_frame(&mut self, imgui_draw_data: Option<&imgui::DrawData>) {
         self.graphic_context.sync_objects.wait_fence_current(self.graphic_context.get_device());
 
-        if self.graphic_context.get_window().window_is_minimized() {
+        if !self.graphic_context.get_window().is_window_visible() {
             return;
         }
 
