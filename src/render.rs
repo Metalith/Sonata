@@ -8,15 +8,15 @@ use winit::{platform::windows::WindowExtWindows, window::Window};
 
 use std::cell::RefCell;
 
-pub struct RenderSystem<'a> {
+pub struct RenderSystem {
     pub renderer: RefCell<sketch::Renderer>,
-    win: &'a Window,
+    win: Window,
     pub imgui: RefCell<Context>,
     platform: WinitPlatform,
 }
 
-impl<'a> RenderSystem<'a> {
-    pub fn new(win: &'a Window) -> Self {
+impl RenderSystem {
+    pub fn new(win: Window) -> Self {
         let mut imgui = Context::create();
         // configure imgui-rs Context if necessary
 
@@ -80,9 +80,11 @@ impl<'a> RenderSystem<'a> {
             platform: platform,
         }
     }
+
+    pub fn nop(&self) {}
 }
 
-impl<'a> System for RenderSystem<'a> {
+impl System for RenderSystem {
     fn update(&self) {
         let mut imgui = self.imgui.borrow_mut();
         let ui = imgui.frame();
