@@ -6,7 +6,9 @@ use imgui::*;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use winit::{platform::windows::WindowExtWindows, window::Window};
 
+use std::any::TypeId;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 pub struct RenderSystem {
     pub renderer: RefCell<sketch::Renderer>,
@@ -80,12 +82,10 @@ impl RenderSystem {
             platform: platform,
         }
     }
-
-    pub fn nop(&self) {}
 }
 
 impl System for RenderSystem {
-    fn update(&self) {
+    fn update(&self, entities: &HashMap<TypeId, Vec<u32>>) {
         let mut imgui = self.imgui.borrow_mut();
         let ui = imgui.frame();
 
