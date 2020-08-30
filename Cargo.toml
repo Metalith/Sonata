@@ -15,7 +15,7 @@ winit = "0.22.2"
 log = "0.4.8"
 env_logger = "0.7.1"
 sketch = { path = "sketch", version = "0.1.0" }
-wind = { path = "wind", version = "0.0.1" }
+wind = { path = "wind", version = "0.0.2" }
 
 [build-dependencies]
 shaderc = "0.6.1"
