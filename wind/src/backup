@@ -1,0 +1,220 @@
+use std::any::{Any, TypeId};
+
+use std::{
+    collections::{HashMap, HashSet},
+    marker::PhantomData,
+};
+
+type Entity = u32;
+
+pub struct EntityBuilder<'a> {
+    entity_id: Entity,
+    entity_components: Components,
+    entity_store: &'a mut EntityStore,
+    component_store: &'a mut ComponentStore,
+}
+
+impl<'a> EntityBuilder<'a> {
+    fn new(entity_id: Entity, entity_store: &'a mut EntityStore, component_store: &'a mut ComponentStore) -> Self {
+        Self {
+            entity_id,
+            entity_components: Components::default(),
+            entity_store,
+            component_store,
+        }
+    }
+
+    pub fn components(mut self, components: Components) -> Self {
+        self.entity_components = components;
+        self
+    }
+
+    pub fn build(self) -> Entity {
+        self.entity_store.register_entity(self.entity_id);
+        self.component_store.register_entity(self.entity_id, self.entity_components);
+        self.entity_id
+    }
+}
+
+pub trait Component: Any {}
+impl<E: Any> Component for E {}
+
+type Components = HashMap<TypeId, Box<dyn Any>>;
+
+#[derive(Default)]
+pub struct ComponentBuilder {
+    components: Components,
+}
+
+impl ComponentBuilder {
+    /// Creates an new builder with default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds a component of type `C` to the entity.
+    pub fn with<C: Component>(mut self, component: C) -> Self {
+        self.components.insert(TypeId::of::<C>(), Box::new(component));
+        self
+    }
+
+    /// Finishing the creation of the entity.
+    pub fn build(self) -> Components {
+        self.components
+    }
+}
+
+#[derive(Default)]
+pub struct EntityStore {
+    entities: Vec<Entity>,
+}
+
+impl EntityStore {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn register_entity(&mut self, entity_id: Entity) {
+        self.entities.push(entity_id);
+    }
+}
+
+#[derive(Default)]
+pub struct ComponentStore {
+    component_maps: HashMap<TypeId, HashMap<Entity, Box<dyn Any>>>,
+}
+
+impl ComponentStore {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn register_entity(&mut self, entity_id: Entity, components: Components) {
+        for (key, value) in components {
+            if !self.component_maps.contains_key(&key) {
+                self.component_maps.insert(key, HashMap::default());
+            }
+
+            self.component_maps.get_mut(&key).expect("Failed to add entity to component store").insert(entity_id, value);
+        }
+    }
+
+    pub fn get_component<T: Any>(&mut self, entity_id: Entity) -> Result<&mut T, &'static str> {
+        match self.component_maps.get_mut(&TypeId::of::<T>()) {
+            Some(component_map) => match component_map.get_mut(&entity_id) {
+                Some(component) => Ok(component.downcast_mut::<T>().expect("ComponentStore: Internal downcast error")),
+                _ => Err("Entity not found"),
+            },
+            _ => Err("Component not found"),
+        }
+    }
+}
+
+pub struct SystemBuilder<'a> {
+    system_id: u32,
+    system: Box<dyn System>,
+    system_components: Vec<TypeId>,
+    system_store: &'a mut SystemStore,
+}
+
+impl<'a> SystemBuilder<'a> {
+    fn new<S: System>(system_store: &'a mut SystemStore, system: S, system_id: u32) -> Self {
+        Self {
+            system_id,
+            system: Box::new(system),
+            system_components: Vec::new(),
+            system_store,
+        }
+    }
+
+    pub fn with_component<C: Component>(mut self) -> Self {
+        self.system_components.push(TypeId::of::<C>());
+        self
+    }
+
+    pub fn build(self) -> u32 {
+        self.system_store.register(self.system_id, self.system, self.system_components);
+        self.system_id
+    }
+}
+
+#[derive(Default)]
+pub struct SystemStore {
+    pub systems: HashMap<u32, Box<dyn System>>,
+    pub system_components: HashMap<u32, Vec<TypeId>>,
+}
+
+impl SystemStore {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn register(&mut self, system_id: u32, system: Box<dyn System>, components: Vec<TypeId>) {
+        self.systems.insert(system_id, system);
+        self.system_components.insert(system_id, components);
+    }
+}
+
+pub struct Engine<E> {
+    system_store: SystemStore,
+    component_store: ComponentStore,
+    entity_store: EntityStore,
+
+    system_counter: u32,
+    entity_counter: u32,
+
+    event_type: PhantomData<E>,
+}
+
+impl<E> Engine<E> {
+    pub fn new() -> Engine<E> {
+        Engine {
+            system_store: SystemStore::new(),
+            component_store: ComponentStore::new(),
+            entity_store: EntityStore::new(),
+            system_counter: 0,
+            entity_counter: 0,
+            event_type: PhantomData::default(),
+        }
+    }
+
+    pub fn create_system<T: System>(&mut self, system: T) -> SystemBuilder {
+        let system_id = self.system_counter.into();
+        self.system_counter += 1;
+
+        SystemBuilder::new(&mut self.system_store, system, system_id)
+    }
+
+    pub fn create_entity(&mut self) -> EntityBuilder {
+        let entity = self.entity_counter.into();
+        self.entity_counter += 1;
+
+        EntityBuilder::new(entity, &mut self.entity_store, &mut self.component_store)
+    }
+
+    pub fn get_component<T: Any>(&mut self, entity_id: Entity) -> Result<&mut T, &'static str> {
+        self.component_store.get_component(entity_id)
+    }
+
+    pub fn send_event(&self) {}
+
+    pub fn update(&mut self) {
+        for (system_id, system) in self.system_store.systems.iter() {
+            let mut entities = HashSet::new();
+            match self.system_store.system_components.get(&system_id) {
+                Some(components) => {
+                    for component in components.iter() {
+                        match self.component_store.component_maps.get(component) {
+                            Some(entity_components) => {
+                                entities.extend(entity_components.keys().into_iter());
+                            }
+                            _ => (),
+                        };
+                    }
+                }
+                _ => (),
+            };
+            system.update(&mut self.component_store, &entities.into_iter().collect());
+        }
+    }
+}
