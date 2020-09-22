@@ -10,9 +10,9 @@ description = "Vulkan rendering system"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-ash = "0.30.0"
+ash = "0.31.0"
 imgui = "0.4.0"
-imgui-rs-vulkan-renderer = "0.4.1"
+imgui-rs-vulkan-renderer = "0.4.2"
 log = "0.4.8"
 memoffset = "0.5.4"
 cgmath = "0.17.0"

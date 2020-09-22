@@ -1,4 +1,4 @@
-use wind::System;
+use specs::System;
 
 use sketch::model::Vertex;
 
@@ -6,9 +6,7 @@ use imgui::*;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use winit::{platform::windows::WindowExtWindows, window::Window};
 
-use std::any::TypeId;
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::cell::{Cell, RefCell};
 
 pub struct RenderSystem {
     pub renderer: RefCell<sketch::Renderer>,
@@ -84,8 +82,10 @@ impl RenderSystem {
     }
 }
 
-impl System for RenderSystem {
-    fn update(&self, entities: &HashMap<TypeId, Vec<u32>>) {
+impl<'a> System<'a> for RenderSystem {
+    type SystemData = ();
+
+    fn run(&mut self, _: Self::SystemData) {
         let mut imgui = self.imgui.borrow_mut();
         let ui = imgui.frame();
 
