@@ -6,7 +6,7 @@ use imgui::*;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use winit::{platform::windows::WindowExtWindows, window::Window};
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 
 pub struct RenderSystem {
     pub renderer: RefCell<sketch::Renderer>,
