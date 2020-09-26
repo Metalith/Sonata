@@ -1,21 +1,19 @@
 extern crate build_deps;
 
-use shaderc;
-
 use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    build_deps::rerun_if_changed_paths("assets/shaders/*").unwrap();
+    build_deps::rerun_if_changed_paths("../assets/shaders/*").unwrap();
 
     let mut compiler = shaderc::Compiler::new().unwrap();
     let out_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
 
-    let assets_path = format!("{}/{}", out_dir, "assets/gen/shaders");
+    let assets_path = format!("{}/{}", out_dir, "../assets/gen/shaders");
 
     // Create destination path if necessary
     std::fs::create_dir_all(&assets_path)?;
 
-    for entry in std::fs::read_dir("assets/shaders")? {
+    for entry in std::fs::read_dir("../assets/shaders")? {
         let entry = entry?;
 
         if entry.file_type()?.is_file() {

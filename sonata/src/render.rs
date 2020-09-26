@@ -1,4 +1,4 @@
-use specs::System;
+use specs::{Read, System};
 
 use sketch::model::Vertex;
 
@@ -7,6 +7,8 @@ use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use winit::{platform::windows::WindowExtWindows, window::Window};
 
 use std::cell::RefCell;
+
+use crate::{DeltaTime, WinitEventData};
 
 pub struct RenderSystem {
     pub renderer: RefCell<sketch::Renderer>,
@@ -22,6 +24,7 @@ impl RenderSystem {
 
         let mut platform = WinitPlatform::init(&mut imgui); // step 1
         platform.attach_window(imgui.io_mut(), &win, HiDpiMode::Default); // step 2
+
         let hidpi_factor = platform.hidpi_factor();
         let font_size = (13.0 * hidpi_factor) as f32;
         imgui.fonts().add_font(&[FontSource::DefaultFontData {
@@ -75,24 +78,32 @@ impl RenderSystem {
 
         RenderSystem {
             renderer: RefCell::new(renderer),
-            win: win,
+            win,
             imgui: RefCell::new(imgui),
-            platform: platform,
+            platform,
         }
     }
 }
 
 impl<'a> System<'a> for RenderSystem {
-    type SystemData = ();
+    type SystemData = (Read<'a, WinitEventData>, Read<'a, DeltaTime>);
 
-    fn run(&mut self, _: Self::SystemData) {
+    fn run(&mut self, (events_storage, delta_time): Self::SystemData) {
         let mut imgui = self.imgui.borrow_mut();
+
+        imgui.io_mut().update_delta_time(delta_time.last_frame);
+        for event in &events_storage.events {
+            self.platform.handle_event(imgui.io_mut(), &self.win, event);
+        }
+
+        let fps = imgui.io().framerate;
         let ui = imgui.frame();
 
         imgui::Window::new(im_str!("Hello world")).size([300.0, 100.0], Condition::FirstUseEver).build(&ui, || {
             ui.text(im_str!("Hello world!"));
             ui.text(im_str!("This...is...imgui-rs!"));
             ui.separator();
+            ui.text(format!("Average {:.3} ms/frame ({:.1} FPS)", 1000f32 / fps, fps));
             let mouse_pos = ui.io().mouse_pos;
             ui.text(format!("Mouse Position: ({:.1},{:.1})", mouse_pos[0], mouse_pos[1]));
         });

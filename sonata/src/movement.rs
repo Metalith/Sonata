@@ -14,7 +14,7 @@ impl<'a> System<'a> for MoveSystem {
             transform.pos[1] += vel.vel[1];
             transform.pos[2] += vel.vel[2];
 
-            dbg!(transform);
+            // dbg!(transform);
         }
     }
 }
