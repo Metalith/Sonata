@@ -5,7 +5,7 @@ mod control;
 mod movement;
 mod render;
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use control::ControlSystem;
 use movement::MoveSystem;
@@ -36,14 +36,14 @@ pub struct Transform {
 
 pub struct DeltaTime {
     pub last_frame: Instant, // Workaround for current version of imgui-rs
-    pub delta: Duration,
+    pub start_time: Instant,
 }
 
 impl Default for DeltaTime {
     fn default() -> Self {
         Self {
             last_frame: Instant::now(),
-            delta: Duration::default(),
+            start_time: Instant::now(),
         }
     }
 }
@@ -82,10 +82,8 @@ fn main() {
             world.write_resource::<WinitEventData>().events.push(event.clone());
             match event {
                 Event::NewEvents(_) => {
-                    let now = Instant::now();
-                    world.write_resource::<DeltaTime>().delta = now - last_frame;
                     world.write_resource::<DeltaTime>().last_frame = last_frame;
-                    last_frame = now;
+                    last_frame = Instant::now();
                 }
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,

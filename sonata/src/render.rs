@@ -1,4 +1,4 @@
-use specs::{Read, System};
+use specs::{Join, Read, ReadStorage, System};
 
 use sketch::model::Vertex;
 
@@ -8,7 +8,7 @@ use winit::{platform::windows::WindowExtWindows, window::Window};
 
 use std::cell::RefCell;
 
-use crate::{DeltaTime, WinitEventData};
+use crate::{DeltaTime, Player, Transform, WinitEventData};
 
 pub struct RenderSystem {
     pub renderer: RefCell<sketch::Renderer>,
@@ -86,9 +86,14 @@ impl RenderSystem {
 }
 
 impl<'a> System<'a> for RenderSystem {
-    type SystemData = (Read<'a, WinitEventData>, Read<'a, DeltaTime>);
+    type SystemData = (Read<'a, WinitEventData>, Read<'a, DeltaTime>, ReadStorage<'a, Player>, ReadStorage<'a, Transform>);
 
-    fn run(&mut self, (events_storage, delta_time): Self::SystemData) {
+    fn run(&mut self, (events_storage, delta_time, player_storage, transform_storage): Self::SystemData) {
+        let mut player_pos = [0.0, 0.0, 0.0];
+        for (_, transform) in (&player_storage, &transform_storage).join() {
+            player_pos = transform.pos;
+        }
+
         let mut imgui = self.imgui.borrow_mut();
 
         imgui.io_mut().update_delta_time(delta_time.last_frame);
@@ -99,10 +104,12 @@ impl<'a> System<'a> for RenderSystem {
         let fps = imgui.io().framerate;
         let ui = imgui.frame();
 
-        imgui::Window::new(im_str!("Hello world")).size([300.0, 100.0], Condition::FirstUseEver).build(&ui, || {
+        imgui::Window::new(im_str!("Hello world")).build(&ui, || {
             ui.text(im_str!("Hello world!"));
             ui.text(im_str!("This...is...imgui-rs!"));
             ui.separator();
+            ui.text(format!("Running for: {:.3} seconds", delta_time.start_time.elapsed().as_secs_f32()));
+            ui.text(format!("Player position: {:.2?}", player_pos));
             ui.text(format!("Average {:.3} ms/frame ({:.1} FPS)", 1000f32 / fps, fps));
             let mouse_pos = ui.io().mouse_pos;
             ui.text(format!("Mouse Position: ({:.1},{:.1})", mouse_pos[0], mouse_pos[1]));
