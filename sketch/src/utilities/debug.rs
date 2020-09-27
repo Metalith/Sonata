@@ -1,12 +1,12 @@
-use crate::utility::utility;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use super::utility;
+use crate::{GraphicContext, VulkanObject};
 
 use ash::{version::EntryV1_0, vk, Entry, Instance};
 
-use std::ffi::CStr;
-use std::ffi::CString;
-use std::os::raw::c_void;
+use std::{
+    ffi::{CStr, CString},
+    os::raw::c_void,
+};
 
 pub struct DebugMessenger {
     debug_messenger: vk::DebugUtilsMessengerEXT,
@@ -34,7 +34,7 @@ impl DebugMessenger {
         DebugMessenger {
             debug_messenger: utils_messenger,
             debug_loader: loader,
-            validation_enabled: validation_enabled,
+            validation_enabled,
         }
     }
 
@@ -42,7 +42,7 @@ impl DebugMessenger {
         let available_layers = entry.enumerate_instance_layer_properties().unwrap();
         let required_layers = Self::get_validation_layers();
 
-        if available_layers.len() <= 0 {
+        if available_layers.is_empty() {
             error!("No available layers.");
             return false;
         } else {

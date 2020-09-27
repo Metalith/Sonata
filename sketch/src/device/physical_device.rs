@@ -1,9 +1,5 @@
-use super::QueueFamily;
-use super::Surface;
-use crate::renderpass::SwapChain;
-use crate::utility::utility;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use super::{QueueFamily, Surface};
+use crate::{renderpasses::SwapChain, utilities::utility, GraphicContext, VulkanObject};
 
 use ash::{extensions::khr::Swapchain, version::InstanceV1_0, vk, Instance};
 
@@ -23,10 +19,10 @@ impl PhysicalDevice {
         let mem_properties = unsafe { instance.get_physical_device_memory_properties(physical_device) };
 
         PhysicalDevice {
-            physical_device: physical_device,
-            mem_properties: mem_properties,
-            graphics_index: graphics_index,
-            present_index: present_index,
+            physical_device,
+            mem_properties,
+            graphics_index,
+            present_index,
         }
     }
 

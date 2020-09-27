@@ -53,7 +53,6 @@ impl<'a> System<'a> for ControlSystem {
         }
 
         // TODO: Replace this with a more physics based approach
-        // TODO: Use time delta to set this
         let mut dir = [
             self.process_dir_key(Direction::Horizontal),
             self.process_dir_key(Direction::Forward),

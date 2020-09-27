@@ -1,7 +1,5 @@
 use super::Buffer;
-use crate::device::PhysicalDevice;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{device::PhysicalDevice, GraphicContext, VulkanObject};
 
 use ash::{vk, Device};
 use cgmath::Matrix4;
@@ -34,14 +32,7 @@ impl UniformBufferObject {
             physical_device,
         );
 
-        UniformBufferObject { buffer: buffer }
-    }
-
-    pub fn update(&self, context: &GraphicContext, model: Matrix4<f32>, view: Matrix4<f32>, proj: Matrix4<f32>) {
-        let ubo = UniformTestObject { model, view, proj };
-        let ubos = [ubo];
-
-        self.buffer.map_memory::<f32, _>(&ubos, context);
+        UniformBufferObject { buffer }
     }
 
     pub fn update2<A, T: Copy>(&self, context: &GraphicContext, object: &[T]) {

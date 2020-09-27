@@ -1,8 +1,7 @@
-use crate::device::PhysicalDevice;
-use crate::device::Surface;
-use crate::device::Window;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{
+    device::{PhysicalDevice, Surface, Window},
+    GraphicContext, VulkanObject,
+};
 
 use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Instance};
 
@@ -84,12 +83,12 @@ impl SwapChain {
         }
 
         SwapChain {
-            swapchain_loader: swapchain_loader,
-            swapchain: swapchain,
-            surface_format: surface_format,
-            extent: extent,
-            images: images,
-            image_views: image_views,
+            swapchain_loader,
+            swapchain,
+            surface_format,
+            extent,
+            images,
+            image_views,
         }
     }
 
@@ -113,7 +112,7 @@ impl SwapChain {
 
     pub fn choose_present_mode(availabe_present_modes: Vec<vk::PresentModeKHR>) -> vk::PresentModeKHR {
         for &available_present_mode in availabe_present_modes.iter() {
-            if available_present_mode == vk::PresentModeKHR::MAILBOX {
+            if available_present_mode == vk::PresentModeKHR::IMMEDIATE {
                 return available_present_mode;
             }
         }
@@ -123,7 +122,7 @@ impl SwapChain {
 
     pub fn choose_extent(capabilities: vk::SurfaceCapabilitiesKHR, window: &Window) -> vk::Extent2D {
         if capabilities.current_extent.width != std::u32::MAX {
-            return capabilities.current_extent;
+            capabilities.current_extent
         } else {
             let (width, height) = window.get_window_size();
             vk::Extent2D {

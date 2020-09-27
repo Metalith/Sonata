@@ -8,12 +8,12 @@ mod buffers;
 mod commands;
 pub mod device;
 mod graphic_context;
-pub mod model;
-mod pipeline;
+pub mod models;
+mod pipelines;
 mod renderer;
-mod renderpass;
+mod renderpasses;
 mod sync;
-mod utility;
+mod utilities;
 
 pub use graphic_context::GraphicContext;
 pub use renderer::Renderer;

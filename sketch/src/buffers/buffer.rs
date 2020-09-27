@@ -1,6 +1,4 @@
-use crate::device::PhysicalDevice;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{device::PhysicalDevice, GraphicContext, VulkanObject};
 
 use ash::{version::DeviceV1_0, vk, Device};
 
@@ -28,10 +26,7 @@ impl Buffer {
             logical_device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
         }
 
-        Buffer {
-            buffer: buffer,
-            buffer_memory: buffer_memory,
-        }
+        Buffer { buffer, buffer_memory }
     }
 
     fn find_memory_type(type_filter: u32, properties: vk::MemoryPropertyFlags, physical_mem_properties: &vk::PhysicalDeviceMemoryProperties) -> u32 {
@@ -45,7 +40,8 @@ impl Buffer {
     }
 
     pub fn map_memory<A, T: Copy>(&self, object: &[T], context: &GraphicContext) {
-        let size = vk::DeviceSize::from(std::mem::size_of_val(object) as u64);
+        #[allow(clippy::useless_conversion)]
+        let size: vk::DeviceSize = vk::DeviceSize::from(std::mem::size_of_val(object) as u64);
         unsafe {
             let data_ptr = context.get_device().map_memory(self.buffer_memory, 0, size, vk::MemoryMapFlags::empty()).unwrap();
 
@@ -73,7 +69,10 @@ impl Buffer {
             context.get_device().begin_command_buffer(command_buffers[0], &begin_info).unwrap();
             context.get_device().cmd_copy_buffer(command_buffers[0], src, dst, &[copy_region]);
             context.get_device().end_command_buffer(command_buffers[0]).unwrap();
-            context.get_device().queue_submit(*context.get_logical_device().graphics_queue(), &[submit_info], vk::Fence::null()).unwrap();
+            context
+                .get_device()
+                .queue_submit(*context.get_logical_device().graphics_queue(), &[submit_info], vk::Fence::null())
+                .unwrap();
             context.wait_device();
         }
     }

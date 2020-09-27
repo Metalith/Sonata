@@ -1,8 +1,8 @@
 use super::PhysicalDevice;
-use crate::utility::utility;
-use crate::utility::DebugMessenger;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{
+    utilities::{utility, DebugMessenger},
+    GraphicContext, VulkanObject,
+};
 
 use ash::{
     version::{DeviceV1_0, InstanceV1_0},
@@ -43,8 +43,8 @@ impl LogicalDevice {
 
         LogicalDevice {
             logical_device: device,
-            graphics_queue: graphics_queue,
-            present_queue: present_queue,
+            graphics_queue,
+            present_queue,
         }
     }
 

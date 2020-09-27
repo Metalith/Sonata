@@ -1,16 +1,18 @@
 use crate::VulkanObject;
 
-use crate::buffers::{UniformBufferObject, UniformTestObject};
-use crate::commands::{CommandBuffer, CommandPool};
-use crate::device::window::{HINSTANCE, HWND};
-use crate::device::Window;
-use crate::device::{Instance, LogicalDevice, PhysicalDevice, Surface};
-use crate::model::Model;
-use crate::model::Vertex;
-use crate::pipeline::{DescriptorLayout, DescriptorPool, DescriptorSet, Pipeline};
-use crate::renderpass::{FrameBuffer, RenderPass, SwapChain};
-use crate::sync::SyncObjects;
-use crate::utility::constants::*;
+use crate::{
+    buffers::{UniformBufferObject, UniformTestObject},
+    commands::{CommandBuffer, CommandPool},
+    device::{
+        window::{HINSTANCE, HWND},
+        Instance, LogicalDevice, PhysicalDevice, Surface, Window,
+    },
+    models::{Model, Vertex},
+    pipelines::{DescriptorLayout, DescriptorPool, DescriptorSet, Pipeline},
+    renderpasses::{FrameBuffer, RenderPass, SwapChain},
+    sync::SyncObjects,
+    utilities::constants::*,
+};
 
 use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Entry};
 
@@ -74,23 +76,23 @@ impl GraphicContext {
 
         GraphicContext {
             _entry: entry,
-            instance: instance,
-            surface: surface,
-            physical_device: physical_device,
-            logical_device: logical_device,
-            swapchain: swapchain,
-            render_pass: render_pass,
-            pipeline: pipeline,
+            instance,
+            surface,
+            physical_device,
+            logical_device,
+            swapchain,
+            render_pass,
+            pipeline,
             frame_buffers: framebuffer,
-            command_pool: command_pool,
-            command_buffers: command_buffers,
-            sync_objects: sync_objects,
-            window: window,
-            start_time: start_time,
+            command_pool,
+            command_buffers,
+            sync_objects,
+            window,
+            start_time,
             uniform_buffers: u_buffers,
-            descriptor_layout: descriptor_layout,
-            descriptor_pool: descriptor_pool,
-            descriptor_set: descriptor_set,
+            descriptor_layout,
+            descriptor_pool,
+            descriptor_set,
         }
     }
 
@@ -147,14 +149,10 @@ impl GraphicContext {
         };
 
         match image_result {
-            Ok((_, true)) | Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
-                return Err("Suboptimal swapchain");
-            }
-            Ok((image_index, false)) => {
-                return Ok(image_index as usize);
-            }
+            Ok((_, true)) | Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => Err("Suboptimal swapchain"),
+            Ok((image_index, false)) => Ok(image_index as usize),
             _ => panic!("acquire swapchain image failed"),
-        };
+        }
     }
 
     pub fn cleanup_swapchain(&self) {
@@ -207,13 +205,13 @@ impl GraphicContext {
             .clear_values(&[clear_color])
             .build();
 
-        self.command_buffers.begin(
+        self.command_buffers.begin(image_index, self.get_device(), &render_pass_info);
+        self.command_buffers.bind_pipeline(image_index, self.get_device(), self.pipeline.vulkan_object());
+        self.command_buffers.set_scissor(image_index, self.get_device(), self.swapchain.scissor());
+        self.command_buffers.set_viewport(image_index, self.get_device(), self.swapchain.viewport());
+        self.command_buffers.bind_descriptor_sets(
             image_index,
             self.get_device(),
-            &render_pass_info,
-            self.swapchain.viewport(),
-            self.swapchain.scissor(),
-            self.pipeline.vulkan_object(),
             self.pipeline.get_layout(),
             &self.descriptor_set.vulkan_object()[image_index..=image_index],
         );
@@ -227,7 +225,7 @@ impl GraphicContext {
         self.command_buffers.end(image_index, self.get_device());
     }
 
-    pub fn render_models(&self, image_index: usize, models: &Vec<Model>) {
+    pub fn render_models(&self, image_index: usize, models: &[Model]) {
         for model in models.iter() {
             model.render(self.get_device(), self.command_buffers.get(image_index));
         }

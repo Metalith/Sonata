@@ -1,8 +1,5 @@
 use super::shader;
-use crate::model::Vertex;
-use crate::renderpass::RenderPass;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{models::Vertex, renderpasses::RenderPass, GraphicContext, VulkanObject};
 
 use ash::{version::DeviceV1_0, vk, Device};
 
@@ -20,9 +17,17 @@ impl Pipeline {
 
         let entry_point_name = CString::new("main").unwrap();
 
-        let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder().stage(vk::ShaderStageFlags::VERTEX).module(vert_shader).name(&entry_point_name).build();
+        let vert_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+            .stage(vk::ShaderStageFlags::VERTEX)
+            .module(vert_shader)
+            .name(&entry_point_name)
+            .build();
 
-        let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder().stage(vk::ShaderStageFlags::FRAGMENT).module(frag_shader).name(&entry_point_name).build();
+        let frag_shader_stage_info = vk::PipelineShaderStageCreateInfo::builder()
+            .stage(vk::ShaderStageFlags::FRAGMENT)
+            .module(frag_shader)
+            .name(&entry_point_name)
+            .build();
 
         let shader_stages = [vert_shader_stage_info, frag_shader_stage_info];
 
@@ -33,7 +38,10 @@ impl Pipeline {
             .vertex_binding_descriptions(&vertex_binding_descriptions)
             .build();
 
-        let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder().topology(vk::PrimitiveTopology::TRIANGLE_LIST).primitive_restart_enable(false).build();
+        let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder()
+            .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+            .primitive_restart_enable(false)
+            .build();
 
         let viewport_state = vk::PipelineViewportStateCreateInfo::builder().viewport_count(1).scissor_count(1).build();
 
@@ -53,7 +61,10 @@ impl Pipeline {
             .min_sample_shading(1f32)
             .build();
 
-        let color_blend_attachment = vk::PipelineColorBlendAttachmentState::builder().color_write_mask(vk::ColorComponentFlags::all()).blend_enable(false).build();
+        let color_blend_attachment = vk::PipelineColorBlendAttachmentState::builder()
+            .color_write_mask(vk::ColorComponentFlags::all())
+            .blend_enable(false)
+            .build();
 
         let color_blending = vk::PipelineColorBlendStateCreateInfo::builder().logic_op_enable(false).attachments(&[color_blend_attachment]).build();
 
@@ -86,10 +97,7 @@ impl Pipeline {
             device.destroy_shader_module(frag_shader, None);
         }
 
-        Pipeline {
-            pipeline_layout: pipeline_layout,
-            pipeline: pipeline,
-        }
+        Pipeline { pipeline_layout, pipeline }
     }
 
     pub fn get_layout(&self) -> &vk::PipelineLayout {

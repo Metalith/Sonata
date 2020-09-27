@@ -1,6 +1,7 @@
-use crate::device::window::{HINSTANCE, HWND};
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{
+    device::window::{HINSTANCE, HWND},
+    GraphicContext, VulkanObject,
+};
 
 use ash::{extensions::khr, vk, Entry, Instance};
 
@@ -18,7 +19,7 @@ impl Surface {
 
         Surface {
             surface_loader: khr::Surface::new(entry, instance),
-            surface: surface,
+            surface,
         }
     }
 

@@ -1,8 +1,7 @@
 pub type HWND = *mut std::ffi::c_void;
 pub type HINSTANCE = *mut std::ffi::c_void;
 
-use std::cell::Cell;
-use std::mem::zeroed;
+use std::{cell::Cell, mem::zeroed};
 
 pub struct Window {
     window_size: Cell<(u32, u32)>,
@@ -13,7 +12,7 @@ impl Window {
     pub fn new(hwnd: HWND) -> Window {
         Window {
             window_size: Cell::new(get_window_size(hwnd)),
-            hwnd: hwnd,
+            hwnd,
         }
     }
 

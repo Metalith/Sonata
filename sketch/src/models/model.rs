@@ -1,8 +1,8 @@
 use super::Vertex;
-use crate::buffers::IndexBuffer;
-use crate::buffers::VertexBuffer;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{
+    buffers::{IndexBuffer, VertexBuffer},
+    GraphicContext, VulkanObject,
+};
 
 use ash::{version::DeviceV1_0, vk, Device};
 
@@ -19,10 +19,7 @@ impl Model {
             None => None,
         };
 
-        Model {
-            vertex_buffer: vertex_buffer,
-            index_buffer: index_buffer,
-        }
+        Model { vertex_buffer, index_buffer }
     }
 
     pub fn render(&self, device: &Device, command_buffer: &vk::CommandBuffer) {

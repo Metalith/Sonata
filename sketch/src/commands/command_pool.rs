@@ -1,6 +1,4 @@
-use crate::device::PhysicalDevice;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{device::PhysicalDevice, GraphicContext, VulkanObject};
 
 use ash::{version::DeviceV1_0, vk, Device};
 
@@ -17,7 +15,7 @@ impl CommandPool {
 
         let command_pool = unsafe { device.create_command_pool(&pool_info, None).unwrap() };
 
-        CommandPool { command_pool: command_pool }
+        CommandPool { command_pool }
     }
 }
 

@@ -1,19 +1,15 @@
-use crate::device::window::{HINSTANCE, HWND};
-use crate::graphic_context::GraphicContext;
-use crate::model::Model;
-use crate::model::Vertex;
+use crate::{
+    device::window::{HINSTANCE, HWND},
+    graphic_context::GraphicContext,
+    models::{Model, Vertex},
+};
 
-use cgmath::Point3;
-
-use std::time::Instant;
+// use cgmath::Point3;
 
 pub struct Renderer {
     graphic_context: GraphicContext,
     models: Vec<Model>,
-    camera: Point3<f32>,
-    fps_timer: Instant,
-    fps_counter: u32,
-
+    // camera: Point3<f32>,
     imgui_renderer: Option<imgui_rs_vulkan_renderer::Renderer>,
 }
 
@@ -21,11 +17,9 @@ impl Renderer {
     pub fn new(hwnd: HWND, hinstance: HINSTANCE) -> Renderer {
         let graphic_context = GraphicContext::new(hwnd, hinstance);
         Renderer {
-            graphic_context: graphic_context,
+            graphic_context,
             models: Vec::new(),
-            camera: Point3::new(0.0, 0.0, 0.0),
-            fps_timer: Instant::now(),
-            fps_counter: 0,
+            // camera: Point3::new(0.0, 0.0, 0.0),
             imgui_renderer: None,
         }
     }
@@ -73,14 +67,6 @@ impl Renderer {
         };
 
         self.graphic_context.sync_objects.increment_frame();
-        self.fps_counter += 1;
-
-        let new_now = Instant::now();
-        if new_now.duration_since(self.fps_timer).as_secs() > 0 {
-            debug!("FPS: {:?}", self.fps_counter);
-            self.fps_timer = new_now;
-            self.fps_counter = 0;
-        }
     }
 }
 

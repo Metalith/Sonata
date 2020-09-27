@@ -1,7 +1,7 @@
-use crate::utility::utility;
-use crate::utility::DebugMessenger;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{
+    utilities::{utility, DebugMessenger},
+    GraphicContext, VulkanObject,
+};
 
 use ash::{
     extensions::{
@@ -12,9 +12,7 @@ use ash::{
     vk, Entry,
 };
 
-use std::ffi::CString;
-use std::os::raw::c_void;
-use std::ptr;
+use std::{ffi::CString, os::raw::c_void, ptr};
 
 pub struct Instance {
     debug_messenger: DebugMessenger,
@@ -65,10 +63,7 @@ impl Instance {
         let instance: ash::Instance = unsafe { entry.create_instance(&create_info, None).expect("Failed to create instance") };
         let debug_messenger = DebugMessenger::new(&entry, &instance);
 
-        Instance {
-            instance: instance,
-            debug_messenger: debug_messenger,
-        }
+        Instance { instance, debug_messenger }
     }
 
     fn required_extension_names() -> Vec<*const i8> {

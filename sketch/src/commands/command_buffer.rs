@@ -1,6 +1,5 @@
 use super::CommandPool;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{GraphicContext, VulkanObject};
 
 use ash::{version::DeviceV1_0, vk, Device};
 
@@ -18,32 +17,40 @@ impl CommandBuffer {
 
         let command_buffers = unsafe { device.allocate_command_buffers(&alloc_info).unwrap() };
 
-        CommandBuffer { command_buffers: command_buffers }
+        CommandBuffer { command_buffers }
     }
 
-    pub fn begin(
-        &self,
-        index: usize,
-        device: &Device,
-        render_pass_info: &vk::RenderPassBeginInfo,
-        viewport: vk::Viewport,
-        scissor: vk::Rect2D,
-        pipeline: &vk::Pipeline,
-        pipeline_layout: &vk::PipelineLayout,
-        descriptor_sets: &[vk::DescriptorSet],
-    ) {
+    pub fn begin(&self, index: usize, device: &Device, render_pass_info: &vk::RenderPassBeginInfo) {
         let begin_info = vk::CommandBufferBeginInfo::default();
         unsafe {
             device.begin_command_buffer(self.command_buffers[index], &begin_info).unwrap();
             device.cmd_begin_render_pass(self.command_buffers[index], &render_pass_info, vk::SubpassContents::INLINE);
-            device.cmd_bind_pipeline(self.command_buffers[index], vk::PipelineBindPoint::GRAPHICS, *pipeline); //TODO: Remove this
-            device.cmd_set_viewport(self.command_buffers[index], 0, &[viewport]);
-            device.cmd_set_scissor(self.command_buffers[index], 0, &[scissor]);
-
-            let null = [];
-
-            device.cmd_bind_descriptor_sets(self.command_buffers[index], vk::PipelineBindPoint::GRAPHICS, *pipeline_layout, 0, descriptor_sets, &null);
         };
+    }
+
+    pub fn bind_pipeline(&self, index: usize, device: &Device, pipeline: &vk::Pipeline) {
+        unsafe {
+            device.cmd_bind_pipeline(self.command_buffers[index], vk::PipelineBindPoint::GRAPHICS, *pipeline);
+        }
+    }
+
+    pub fn set_viewport(&self, index: usize, device: &Device, viewport: vk::Viewport) {
+        unsafe {
+            device.cmd_set_viewport(self.command_buffers[index], 0, &[viewport]);
+        }
+    }
+
+    pub fn set_scissor(&self, index: usize, device: &Device, scissor: vk::Rect2D) {
+        unsafe {
+            device.cmd_set_scissor(self.command_buffers[index], 0, &[scissor]);
+        }
+    }
+
+    pub fn bind_descriptor_sets(&self, index: usize, device: &Device, pipeline_layout: &vk::PipelineLayout, descriptor_sets: &[vk::DescriptorSet]) {
+        unsafe {
+            let null = [];
+            device.cmd_bind_descriptor_sets(self.command_buffers[index], vk::PipelineBindPoint::GRAPHICS, *pipeline_layout, 0, descriptor_sets, &null);
+        }
     }
 
     pub fn end(&self, index: usize, device: &Device) {

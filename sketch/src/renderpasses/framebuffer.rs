@@ -1,7 +1,5 @@
-use super::RenderPass;
-use super::SwapChain;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use super::{RenderPass, SwapChain};
+use crate::{GraphicContext, VulkanObject};
 
 use ash::{version::DeviceV1_0, vk, Device};
 
@@ -27,7 +25,7 @@ impl FrameBuffer {
             unsafe { framebuffers.push(device.create_framebuffer(&framebuffer_info, None).unwrap()) }
         }
 
-        FrameBuffer { framebuffers: framebuffers }
+        FrameBuffer { framebuffers }
     }
 }
 

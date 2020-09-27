@@ -1,5 +1,4 @@
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{GraphicContext, VulkanObject};
 
 use ash::{version::DeviceV1_0, vk, Device};
 

@@ -1,8 +1,7 @@
 use crate::GraphicContext;
 use ash::{version::DeviceV1_0, vk, Device};
 
-use std::cell::Cell;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 pub struct SyncObjects {
     current_frame: Cell<usize>,
@@ -35,7 +34,7 @@ impl SyncObjects {
 
         SyncObjects {
             current_frame: Cell::new(0),
-            max_frames: max_frames,
+            max_frames,
             image_available_semaphores,
             render_finished_semaphores,
             in_flight_fences,

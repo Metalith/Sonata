@@ -1,7 +1,5 @@
 use super::Buffer;
-use crate::model::Vertex;
-use crate::GraphicContext;
-use crate::VulkanObject;
+use crate::{models::Vertex, GraphicContext, VulkanObject};
 
 use ash::vk;
 

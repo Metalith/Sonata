@@ -12,9 +12,9 @@ impl QueueFamily {
         let mut queue_families: Vec<QueueFamily> = Vec::new();
 
         let families = unsafe { instance.get_physical_device_queue_family_properties(device) };
-        for i in 0..families.len() {
-            if families[i].queue_count > 0 {
-                queue_families.push(QueueFamily::new(i, families[i]))
+        for (i, family) in families.into_iter().enumerate() {
+            if family.queue_count > 0 {
+                queue_families.push(QueueFamily::new(i, family))
             }
         }
 

@@ -1,6 +1,6 @@
 use specs::{Join, Read, ReadStorage, System};
 
-use sketch::model::Vertex;
+use sketch::models::Vertex;
 
 use imgui::*;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
