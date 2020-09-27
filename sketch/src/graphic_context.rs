@@ -270,14 +270,14 @@ impl GraphicContext {
         Ok(())
     }
 
-    pub fn update_uniforms(&self, image_index: usize) {
+    pub fn update_uniforms(&self, image_index: usize, camera_pos: &Point3<f32>) {
         let time = Instant::now().duration_since(self.start_time).as_millis();
 
         let aspect = self.swapchain.extent().width as f32 / self.swapchain.extent().height as f32;
 
         let model = Matrix4::from_angle_z(Rad::from(Deg(time as f32 * 0.180)));
 
-        let view = Matrix4::look_at(Point3::new(2.0, 2.0, 2.0), Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
+        let view = Matrix4::look_at(*camera_pos, Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
 
         let mut proj = cgmath::perspective(Rad::from(Deg(45.0)), aspect, 0.1, 10.0);
 

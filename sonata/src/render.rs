@@ -6,14 +6,12 @@ use imgui::*;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use winit::{platform::windows::WindowExtWindows, window::Window};
 
-use std::cell::RefCell;
-
 use crate::{DeltaTime, Player, Transform, WinitEventData};
 
 pub struct RenderSystem {
-    pub renderer: RefCell<sketch::Renderer>,
+    renderer: sketch::Renderer,
     win: Window,
-    pub imgui: RefCell<Context>,
+    imgui: Context,
     platform: WinitPlatform,
 }
 
@@ -76,12 +74,7 @@ impl RenderSystem {
         renderer.add_model(&vertices, Some(&indices));
         renderer.add_model(&vertices2, None);
 
-        RenderSystem {
-            renderer: RefCell::new(renderer),
-            win,
-            imgui: RefCell::new(imgui),
-            platform,
-        }
+        RenderSystem { renderer, win, imgui, platform }
     }
 }
 
@@ -94,15 +87,13 @@ impl<'a> System<'a> for RenderSystem {
             player_pos = transform.pos;
         }
 
-        let mut imgui = self.imgui.borrow_mut();
-
-        imgui.io_mut().update_delta_time(delta_time.last_frame);
+        self.imgui.io_mut().update_delta_time(delta_time.last_frame);
         for event in &events_storage.events {
-            self.platform.handle_event(imgui.io_mut(), &self.win, event);
+            self.platform.handle_event(self.imgui.io_mut(), &self.win, event);
         }
 
-        let fps = imgui.io().framerate;
-        let ui = imgui.frame();
+        let fps = self.imgui.io().framerate;
+        let ui = self.imgui.frame();
 
         imgui::Window::new(im_str!("Hello world")).build(&ui, || {
             ui.text(im_str!("Hello world!"));
@@ -118,6 +109,7 @@ impl<'a> System<'a> for RenderSystem {
         self.platform.prepare_render(&ui, &self.win); // step 5
         let draw_data = ui.render();
 
-        self.renderer.borrow_mut().draw_frame(Some(draw_data));
+        self.renderer.update_camera(&player_pos);
+        self.renderer.draw_frame(Some(draw_data));
     }
 }
