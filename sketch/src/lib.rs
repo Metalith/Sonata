@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
 extern crate ash;
-extern crate cgmath;
+extern crate ultraviolet as uv;
 extern crate winapi;
 
 mod buffers;

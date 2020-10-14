@@ -2,12 +2,13 @@ use specs::*;
 use winit::event::VirtualKeyCode;
 use winit_input_helper::WinitInputHelper;
 
-use crate::{DeltaTime, Movement, Player, WinitEventData};
+use crate::{ControlData, MouseState, Movement, Player, TimeStep, Transform, WinitEventData};
 
 enum Direction {
     Forward,
     Horizontal,
     Vertical,
+    Roll,
 }
 
 impl Direction {
@@ -15,19 +16,26 @@ impl Direction {
     pub fn keys(&self) -> (VirtualKeyCode, VirtualKeyCode) {
         match *self {
             Direction::Forward => (VirtualKeyCode::W, VirtualKeyCode::S),
-            Direction::Horizontal => (VirtualKeyCode::D, VirtualKeyCode::A),
+            Direction::Horizontal => (VirtualKeyCode::A, VirtualKeyCode::D),
             Direction::Vertical => (VirtualKeyCode::Space, VirtualKeyCode::LShift),
+            Direction::Roll => (VirtualKeyCode::Q, VirtualKeyCode::E),
         }
     }
 }
 
 pub struct ControlSystem {
     input: WinitInputHelper,
+    mouse_speed: f32,
+    timestep: TimeStep,
 }
 
 impl ControlSystem {
     pub fn new() -> Self {
-        Self { input: WinitInputHelper::new() }
+        Self {
+            input: WinitInputHelper::new(),
+            mouse_speed: 0.5,
+            timestep: TimeStep::new(240),
+        }
     }
 }
 
@@ -42,28 +50,69 @@ impl ControlSystem {
             0.0
         }
     }
+
+    fn get_mouse_delta(&self, control_data: &ControlData) -> (f32, f32) {
+        if let Some((curr_x, curr_y)) = self.input.mouse() {
+            (curr_x - control_data.last_mouse_pos.0, curr_y - control_data.last_mouse_pos.1)
+        } else {
+            (0.0, 0.0)
+        }
+    }
 }
 
 impl<'a> System<'a> for ControlSystem {
-    type SystemData = (Read<'a, WinitEventData>, Read<'a, DeltaTime>, ReadStorage<'a, Player>, WriteStorage<'a, Movement>);
+    #[allow(clippy::type_complexity)]
+    type SystemData = (
+        Read<'a, WinitEventData>,
+        Write<'a, ControlData>,
+        ReadStorage<'a, Transform>,
+        WriteStorage<'a, Player>,
+        WriteStorage<'a, Movement>,
+    );
 
-    fn run(&mut self, (event_queue, delta_time, player_storage, mut movement_storage): Self::SystemData) {
+    fn run(&mut self, (event_queue, mut control_data, transform_storage, mut player_storage, mut movement_storage): Self::SystemData) {
         for event in &event_queue.events {
             self.input.update(&event);
         }
-
-        // TODO: Replace this with a more physics based approach
-        let mut dir = [
-            self.process_dir_key(Direction::Horizontal),
-            self.process_dir_key(Direction::Forward),
-            self.process_dir_key(Direction::Vertical),
-        ];
-        for i in &mut dir {
-            *i *= delta_time.last_frame.elapsed().as_secs_f32();
+        // Mouse Control
+        if self.input.key_pressed(VirtualKeyCode::Tab) {
+            control_data.last_mouse_pos = self.input.mouse().unwrap_or((0.0, 0.0));
+            control_data.mouse_state = match control_data.mouse_state {
+                MouseState::Ui => MouseState::Fly,
+                MouseState::Fly => MouseState::Ui,
+            };
         }
 
-        for (_, m) in (&player_storage, &mut movement_storage).join() {
-            m.vel = dir;
+        let (stepped, delta) = self.timestep.step();
+        if stepped {
+            for (_, movement, transform) in (&mut player_storage, &mut movement_storage, &transform_storage).join() {
+                // Velocity
+                // TODO: Replace this with a more physics based approach
+                let mut dir_vec = uv::Vec3::new(
+                    self.process_dir_key(Direction::Horizontal),
+                    self.process_dir_key(Direction::Vertical),
+                    self.process_dir_key(Direction::Forward),
+                );
+                transform.dir.rotate_vec(&mut dir_vec);
+                movement.vel = dir_vec;
+
+                // Rotation
+                if control_data.mouse_state == MouseState::Fly {
+                    let (delta_x, delta_y) = self.get_mouse_delta(&control_data);
+                    let roll = self.process_dir_key(Direction::Roll);
+
+                    let yaw_rot = uv::Rotor3::from_rotation_xz((delta_x * self.mouse_speed).to_radians());
+                    let pitch_rot = uv::Rotor3::from_rotation_yz((delta_y * self.mouse_speed).to_radians());
+                    let roll_rot = uv::Rotor3::from_rotation_xy((roll * 360.0 * delta).to_radians());
+
+                    movement.rot = roll_rot * yaw_rot * pitch_rot;
+                } else {
+                    movement.rot = uv::Rotor3::default();
+                }
+            }
+            if control_data.mouse_state == MouseState::Fly {
+                control_data.set_mouse = true;
+            };
         }
     }
 }

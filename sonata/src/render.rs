@@ -1,18 +1,23 @@
-use specs::{Join, Read, ReadStorage, System};
+use specs::{Join, Read, ReadStorage, System, Write};
 
 use sketch::models::Vertex;
 
 use imgui::*;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
-use winit::{platform::windows::WindowExtWindows, window::Window};
+use winit::{
+    event::{Event, WindowEvent},
+    platform::windows::WindowExtWindows,
+    window::Window,
+};
 
-use crate::{DeltaTime, Player, Transform, WinitEventData};
+use crate::{ControlData, DeltaTime, MouseState, Player, Transform, WinitEventData};
 
 pub struct RenderSystem {
     renderer: sketch::Renderer,
     win: Window,
     imgui: Context,
     platform: WinitPlatform,
+    window_focused: bool,
 }
 
 impl RenderSystem {
@@ -74,26 +79,65 @@ impl RenderSystem {
         renderer.add_model(&vertices, Some(&indices));
         renderer.add_model(&vertices2, None);
 
-        RenderSystem { renderer, win, imgui, platform }
+        RenderSystem {
+            renderer,
+            win,
+            imgui,
+            platform,
+            window_focused: true,
+        }
     }
 }
 
 impl<'a> System<'a> for RenderSystem {
-    type SystemData = (Read<'a, WinitEventData>, Read<'a, DeltaTime>, ReadStorage<'a, Player>, ReadStorage<'a, Transform>);
+    #[allow(clippy::type_complexity)]
+    type SystemData = (
+        Read<'a, WinitEventData>,
+        Read<'a, DeltaTime>,
+        Write<'a, ControlData>,
+        ReadStorage<'a, Player>,
+        ReadStorage<'a, Transform>,
+    );
 
-    fn run(&mut self, (events_storage, delta_time, player_storage, transform_storage): Self::SystemData) {
-        let mut player_pos = [0.0, 0.0, 0.0];
+    fn run(&mut self, (events_storage, delta_time, mut control_data, player_storage, transform_storage): Self::SystemData) {
+        let mut player_pos = uv::Vec3::default();
+        let mut player_dir = uv::Rotor3::default();
+
         for (_, transform) in (&player_storage, &transform_storage).join() {
             player_pos = transform.pos;
+            player_dir = transform.dir.normalized();
         }
 
-        self.imgui.io_mut().update_delta_time(delta_time.last_frame);
+        self.imgui.io_mut().update_delta_time(delta_time.delta);
         for event in &events_storage.events {
             self.platform.handle_event(self.imgui.io_mut(), &self.win, event);
+            if let Event::WindowEvent { window_id: _, event } = event {
+                if let WindowEvent::Focused(focused) = event {
+                    self.window_focused = *focused;
+                }
+            };
         }
 
         let fps = self.imgui.io().framerate;
         let ui = self.imgui.frame();
+
+        match control_data.mouse_state {
+            MouseState::Ui => {
+                ui.set_mouse_cursor(Some(imgui::MouseCursor::Arrow));
+                self.win.set_cursor_visible(true);
+            }
+            MouseState::Fly if self.window_focused => {
+                ui.set_mouse_cursor(None);
+                self.win.set_cursor_visible(false);
+            }
+            _ => (),
+        }
+
+        if control_data.set_mouse {
+            let pos = winit::dpi::PhysicalPosition::new(control_data.last_mouse_pos.0, control_data.last_mouse_pos.1);
+            self.win.set_cursor_position(pos).unwrap();
+            control_data.set_mouse = false;
+        }
 
         imgui::Window::new(im_str!("Hello world")).build(&ui, || {
             ui.text(im_str!("Hello world!"));
@@ -109,7 +153,11 @@ impl<'a> System<'a> for RenderSystem {
         self.platform.prepare_render(&ui, &self.win); // step 5
         let draw_data = ui.render();
 
-        self.renderer.update_camera(&player_pos);
+        let camera_pos = player_pos;
+        let mut camera_vecs = [uv::Vec3::new(0.0, 0.0, 1.0), uv::Vec3::new(1.0, 0.0, 0.0)];
+        player_dir.rotate_vecs(&mut camera_vecs);
+        let camera_up = camera_vecs[0].cross(camera_vecs[1]);
+        self.renderer.update_camera(&camera_pos.into(), &camera_vecs[0].into(), &camera_up.into());
         self.renderer.draw_frame(Some(draw_data));
     }
 }

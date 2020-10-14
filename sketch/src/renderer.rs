@@ -4,12 +4,12 @@ use crate::{
     models::{Model, Vertex},
 };
 
-use cgmath::Point3;
-
 pub struct Renderer {
     graphic_context: GraphicContext,
     models: Vec<Model>,
-    camera: Point3<f32>,
+    camera_pos: uv::Vec3,
+    camera_dir: uv::Vec3,
+    camera_up: uv::Vec3,
     imgui_renderer: Option<imgui_rs_vulkan_renderer::Renderer>,
 }
 
@@ -19,7 +19,9 @@ impl Renderer {
         Renderer {
             graphic_context,
             models: Vec::new(),
-            camera: Point3::new(0.0, 0.0, 0.0),
+            camera_pos: uv::Vec3::new(2.0, 2.0, 2.0),
+            camera_dir: uv::Vec3::new(-2.0, -2.0, -2.0),
+            camera_up: uv::Vec3::new(0.0, 0.0, 1.0),
             imgui_renderer: None,
         }
     }
@@ -32,8 +34,10 @@ impl Renderer {
         self.models.push(self.graphic_context.create_model(vertices, indices));
     }
 
-    pub fn update_camera(&mut self, pos: &[f32; 3]) {
-        self.camera = Point3::from(*pos);
+    pub fn update_camera(&mut self, pos: &[f32; 3], dir: &[f32; 3], up: &[f32; 3]) {
+        self.camera_pos = uv::Vec3::from(*pos);
+        self.camera_dir = uv::Vec3::from(*dir);
+        self.camera_up = uv::Vec3::from(*up);
     }
 
     pub fn draw_frame(&mut self, imgui_draw_data: Option<&imgui::DrawData>) {
@@ -51,7 +55,7 @@ impl Renderer {
             Ok(i) => i,
         };
 
-        self.graphic_context.update_uniforms(image_index, &self.camera);
+        self.graphic_context.update_uniforms(image_index, &self.camera_pos, &self.camera_dir, &self.camera_up);
 
         self.graphic_context.sync_objects.wait_fence_image(self.graphic_context.get_device(), image_index);
 

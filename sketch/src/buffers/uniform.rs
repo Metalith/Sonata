@@ -2,14 +2,13 @@ use super::Buffer;
 use crate::{device::PhysicalDevice, GraphicContext, VulkanObject};
 
 use ash::{vk, Device};
-use cgmath::Matrix4;
 
 #[derive(Copy, Clone)]
 #[allow(dead_code)]
 pub struct UniformTestObject {
-    pub model: Matrix4<f32>,
-    pub view: Matrix4<f32>,
-    pub proj: Matrix4<f32>,
+    pub model: uv::Mat4,
+    pub view: uv::Mat4,
+    pub proj: uv::Mat4,
 }
 
 impl UniformTestObject {

@@ -18,7 +18,6 @@ use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Entry};
 
 use imgui_rs_vulkan_renderer::RendererVkContext;
 
-use cgmath::{Deg, Matrix4, Point3, Rad, Vector3};
 use std::time::Instant;
 
 pub struct GraphicContext {
@@ -270,18 +269,18 @@ impl GraphicContext {
         Ok(())
     }
 
-    pub fn update_uniforms(&self, image_index: usize, camera_pos: &Point3<f32>) {
+    pub fn update_uniforms(&self, image_index: usize, camera_pos: &uv::Vec3, camera_dir: &uv::Vec3, camera_up: &uv::Vec3) {
         let time = Instant::now().duration_since(self.start_time).as_millis();
 
         let aspect = self.swapchain.extent().width as f32 / self.swapchain.extent().height as f32;
 
-        let model = Matrix4::from_angle_z(Rad::from(Deg(time as f32 * 0.180)));
+        // let model = glm::rotate(&glm::Mat4::identity(), (time as f32 * 0.180).to_radians(), &glm::Vec3::new(0.0, 0.0, 1.0));
+        let model = uv::Mat4::identity();
 
-        let view = Matrix4::look_at(*camera_pos, Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
+        let view = uv::Mat4::look_at(*camera_pos, *camera_pos + *camera_dir, *camera_up);
 
-        let mut proj = cgmath::perspective(Rad::from(Deg(45.0)), aspect, 0.1, 10.0);
-
-        proj.y.y *= -1.0;
+        let mut proj = uv::projection::perspective_gl(45f32.to_radians(), aspect, 0.1, 10.0);
+        proj[1][1] *= -1.0;
 
         let ubo = UniformTestObject { model, view, proj };
         let ubos = [ubo];
