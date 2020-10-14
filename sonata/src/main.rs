@@ -76,6 +76,7 @@ pub struct WinitEventData {
 }
 
 struct TimeStep {
+    pub fps: f32,
     fps_delta: f32,
     last_step: Instant,
 }
@@ -83,6 +84,7 @@ struct TimeStep {
 impl TimeStep {
     pub fn new(fps: i32) -> Self {
         Self {
+            fps: fps as f32,
             fps_delta: 1.0 / fps as f32,
             last_step: Instant::now(),
         }
