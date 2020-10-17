@@ -2,11 +2,16 @@
 extern crate log;
 extern crate ultraviolet as uv;
 
+mod components;
 mod control;
 mod movement;
 mod render;
+mod timestep;
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
+
+pub use components::*;
+pub use timestep::*;
 
 use control::ControlSystem;
 use movement::MoveSystem;
@@ -18,87 +23,6 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum MouseState {
-    Ui,
-    Fly,
-}
-
-impl Default for MouseState {
-    fn default() -> Self {
-        MouseState::Ui
-    }
-}
-
-#[derive(Component, Default, Debug)]
-#[storage(NullStorage)]
-pub struct Player;
-
-#[derive(Component, Default, Debug)]
-#[storage(VecStorage)]
-pub struct Movement {
-    pub vel: uv::Vec3,
-    pub rot: uv::Rotor3,
-}
-
-#[derive(Component, Default, Debug)]
-#[storage(VecStorage)]
-pub struct Transform {
-    pub pos: uv::Vec3,
-    pub dir: uv::Rotor3,
-}
-
-#[derive(Debug, Default)]
-pub struct ControlData {
-    pub set_mouse: bool,
-    pub last_mouse_pos: (f32, f32),
-    pub mouse_state: MouseState,
-}
-
-pub struct DeltaTime {
-    pub delta: Duration,
-    pub start_time: Instant,
-}
-
-impl Default for DeltaTime {
-    fn default() -> Self {
-        Self {
-            delta: Duration::default(),
-            start_time: Instant::now(),
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct WinitEventData {
-    pub events: Vec<Event<'static, ()>>,
-}
-
-struct TimeStep {
-    pub fps: f32,
-    fps_delta: f32,
-    last_step: Instant,
-}
-
-impl TimeStep {
-    pub fn new(fps: i32) -> Self {
-        Self {
-            fps: fps as f32,
-            fps_delta: 1.0 / fps as f32,
-            last_step: Instant::now(),
-        }
-    }
-    pub fn step(&mut self) -> (bool, f32) {
-        let delta = self.last_step.elapsed().as_secs_f32();
-        if delta > self.fps_delta {
-            self.last_step = Instant::now();
-            (true, delta)
-        } else {
-            (false, 0.0)
-        }
-    }
-}
 
 fn main() {
     env_logger::init();
