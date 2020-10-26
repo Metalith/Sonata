@@ -33,7 +33,7 @@ impl ControlSystem {
     pub fn new() -> Self {
         Self {
             input: WinitInputHelper::new(),
-            mouse_speed: 0.000225,
+            mouse_speed: 0.01,
             timestep: TimeStep::new(300),
         }
     }
