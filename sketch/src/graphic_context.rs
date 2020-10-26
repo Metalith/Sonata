@@ -7,7 +7,6 @@ use crate::{
         window::{HINSTANCE, HWND},
         Instance, LogicalDevice, PhysicalDevice, Surface, Window,
     },
-    models::{Model, Vertex},
     pipelines::{DescriptorLayout, DescriptorPool, DescriptorSet, Pipeline},
     renderpasses::{FrameBuffer, RenderPass, SwapChain},
     sync::SyncObjects,
@@ -41,6 +40,7 @@ pub struct GraphicContext {
     descriptor_set: DescriptorSet,
 }
 
+//TODO: Refactor and remove extraneous features. This does need features to generate meshes, etc
 impl GraphicContext {
     pub fn new(hwnd: HWND, hinstance: HINSTANCE) -> GraphicContext {
         let entry = Entry::new().unwrap();
@@ -93,10 +93,6 @@ impl GraphicContext {
             descriptor_pool,
             descriptor_set,
         }
-    }
-
-    pub fn create_model(&self, vertices: &[Vertex], indices: Option<&[u16]>) -> Model {
-        Model::new(vertices, indices, &self)
     }
 
     pub fn get_instance(&self) -> &ash::Instance {
@@ -222,12 +218,6 @@ impl GraphicContext {
 
     pub fn end_command_buffer(&self, image_index: usize) {
         self.command_buffers.end(image_index, self.get_device());
-    }
-
-    pub fn render_models(&self, image_index: usize, models: &[Model]) {
-        for model in models.iter() {
-            model.render(self.get_device(), self.command_buffers.get(image_index));
-        }
     }
 
     pub fn submit_queue(&self, image_index: usize) {

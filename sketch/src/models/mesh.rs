@@ -6,20 +6,20 @@ use crate::{
 
 use ash::{version::DeviceV1_0, vk, Device};
 
-pub struct Model {
+pub struct Mesh {
     vertex_buffer: VertexBuffer,
     index_buffer: Option<IndexBuffer>,
 }
 
-impl Model {
-    pub fn new(vertices: &[Vertex], indices: Option<&[u16]>, context: &GraphicContext) -> Model {
+impl Mesh {
+    pub fn new(vertices: &[Vertex], indices: Option<&[u16]>, context: &GraphicContext) -> Mesh {
         let vertex_buffer = VertexBuffer::new(vertices, context);
         let index_buffer = match indices {
             Some(indices) => Some(IndexBuffer::new(indices, context)),
             None => None,
         };
 
-        Model { vertex_buffer, index_buffer }
+        Mesh { vertex_buffer, index_buffer }
     }
 
     pub fn render(&self, device: &Device, command_buffer: &vk::CommandBuffer) {

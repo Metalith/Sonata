@@ -4,6 +4,7 @@ extern crate ultraviolet as uv;
 
 mod components;
 mod control;
+mod model;
 mod movement;
 mod render;
 mod timestep;
@@ -40,7 +41,7 @@ fn main() {
     world.insert(WinitEventData::default());
     world.insert(ControlData::default());
 
-    // Make generic look at for all axes
+    // Player
     world
         .create_entity()
         .with(Player::default())
@@ -50,6 +51,8 @@ fn main() {
             dir: uv::Rotor3::from_euler_angles(0.0f32.to_radians(), 0.0, 180.0f32.to_radians()), // Look at center from above due to colinearity
         })
         .build();
+
+    // XY Grid
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(ControlSystem::new(), "Control", &[])

@@ -10,7 +10,7 @@ use winit::{
     window::Window,
 };
 
-use crate::{ControlData, DeltaTime, MouseState, Player, Transform, WinitEventData};
+use crate::{model::Model, ControlData, DeltaTime, MouseState, Player, Transform, WinitEventData};
 
 pub struct RenderSystem {
     renderer: sketch::Renderer,
@@ -18,15 +18,15 @@ pub struct RenderSystem {
     imgui: Context,
     platform: WinitPlatform,
     window_focused: bool,
+
+    models: Vec<Model>,
 }
 
 impl RenderSystem {
     pub fn new(win: Window) -> Self {
         let mut imgui = Context::create();
-        // configure imgui-rs Context if necessary
-
-        let mut platform = WinitPlatform::init(&mut imgui); // step 1
-        platform.attach_window(imgui.io_mut(), &win, HiDpiMode::Default); // step 2
+        let mut platform = WinitPlatform::init(&mut imgui);
+        platform.attach_window(imgui.io_mut(), &win, HiDpiMode::Default);
 
         let hidpi_factor = platform.hidpi_factor();
         let font_size = (13.0 * hidpi_factor) as f32;
@@ -74,10 +74,11 @@ impl RenderSystem {
         ];
 
         let mut renderer = sketch::Renderer::new(win.hwnd(), win.hinstance());
-
         renderer.add_imgui_renderer(&mut imgui);
-        renderer.add_model(&vertices, Some(&indices));
-        renderer.add_model(&vertices2, None);
+
+        let mut models = Vec::new();
+        models.push(Model::new(renderer.create_mesh(&vertices, Some(&indices))));
+        models.push(Model::new(renderer.create_mesh(&vertices2, None)));
 
         RenderSystem {
             renderer,
@@ -85,6 +86,7 @@ impl RenderSystem {
             imgui,
             platform,
             window_focused: true,
+            models,
         }
     }
 }
@@ -150,7 +152,8 @@ impl<'a> System<'a> for RenderSystem {
             ui.text(format!("Mouse Position: ({:.1},{:.1})", mouse_pos[0], mouse_pos[1]));
         });
 
-        self.platform.prepare_render(&ui, &self.win); // step 5
+        self.platform.prepare_render(&ui, &self.win);
+
         let draw_data = ui.render();
 
         let camera_pos = player_pos;
@@ -158,6 +161,21 @@ impl<'a> System<'a> for RenderSystem {
         player_dir.rotate_vecs(&mut camera_vecs);
         let camera_up = camera_vecs[0].cross(camera_vecs[1]);
         self.renderer.update_camera(&camera_pos.into(), &camera_vecs[0].into(), &camera_up.into());
-        self.renderer.draw_frame(Some(draw_data));
+        if self.renderer.begin_frame() {
+            for model in self.models.iter() {
+                model.render(&self.renderer);
+            }
+            self.renderer.draw_imgui(draw_data);
+            self.renderer.end_frame();
+        }
+    }
+}
+
+//TODO: Remove drop trait. Call cleanup from loop exit
+impl Drop for RenderSystem {
+    fn drop(&mut self) {
+        for model in self.models.iter() {
+            model.cleanup(&self.renderer);
+        }
     }
 }

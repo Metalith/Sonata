@@ -1,5 +1,5 @@
-mod model;
+mod mesh;
 mod vertex;
 
-pub use model::Model;
+pub use mesh::Mesh;
 pub use vertex::Vertex;

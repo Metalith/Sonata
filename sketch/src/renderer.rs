@@ -1,16 +1,16 @@
 use crate::{
     device::window::{HINSTANCE, HWND},
     graphic_context::GraphicContext,
-    models::{Model, Vertex},
+    models::{Mesh, Vertex},
 };
 
 pub struct Renderer {
     graphic_context: GraphicContext,
-    models: Vec<Model>,
     camera_pos: uv::Vec3,
     camera_dir: uv::Vec3,
     camera_up: uv::Vec3,
     imgui_renderer: Option<imgui_rs_vulkan_renderer::Renderer>,
+    curr_image_index: usize,
 }
 
 impl Renderer {
@@ -18,20 +18,16 @@ impl Renderer {
         let graphic_context = GraphicContext::new(hwnd, hinstance);
         Renderer {
             graphic_context,
-            models: Vec::new(),
             camera_pos: uv::Vec3::new(2.0, 2.0, 2.0),
             camera_dir: uv::Vec3::new(-2.0, -2.0, -2.0),
             camera_up: uv::Vec3::new(0.0, 0.0, 1.0),
             imgui_renderer: None,
+            curr_image_index: 0,
         }
     }
 
     pub fn add_imgui_renderer(&mut self, imgui: &mut imgui::Context) {
         self.imgui_renderer = Some(imgui_rs_vulkan_renderer::Renderer::new(&self.graphic_context, 2, *self.graphic_context.get_render_pass(), imgui).unwrap());
-    }
-
-    pub fn add_model(&mut self, vertices: &[Vertex], indices: Option<&[u16]>) {
-        self.models.push(self.graphic_context.create_model(vertices, indices));
     }
 
     pub fn update_camera(&mut self, pos: &[f32; 3], dir: &[f32; 3], up: &[f32; 3]) {
@@ -40,41 +36,60 @@ impl Renderer {
         self.camera_up = uv::Vec3::from(*up);
     }
 
-    pub fn draw_frame(&mut self, imgui_draw_data: Option<&imgui::DrawData>) {
+    pub fn begin_frame(&mut self) -> bool {
         self.graphic_context.sync_objects.wait_fence_current(self.graphic_context.get_device());
 
         if !self.graphic_context.get_window().is_window_visible() {
-            return;
+            return false;
         }
 
-        let image_index = match self.graphic_context.acquire_next_image() {
+        self.curr_image_index = match self.graphic_context.acquire_next_image() {
             Err(_) => {
                 self.graphic_context.recreate_swapchain();
-                return;
+                return false;
             }
             Ok(i) => i,
         };
 
-        self.graphic_context.update_uniforms(image_index, &self.camera_pos, &self.camera_dir, &self.camera_up);
+        self.graphic_context.update_uniforms(self.curr_image_index, &self.camera_pos, &self.camera_dir, &self.camera_up);
 
-        self.graphic_context.sync_objects.wait_fence_image(self.graphic_context.get_device(), image_index);
+        self.graphic_context.sync_objects.wait_fence_image(self.graphic_context.get_device(), self.curr_image_index);
 
-        self.graphic_context.begin_command_buffer(image_index);
-        self.graphic_context.render_models(image_index, &self.models);
+        self.graphic_context.begin_command_buffer(self.curr_image_index);
+        true
+    }
+
+    pub fn draw_imgui(&mut self, draw_data: &imgui::DrawData) {
         if let Some(imgui_renderer) = &mut self.imgui_renderer {
-            if let Some(data) = imgui_draw_data {
-                imgui_renderer.cmd_draw(&self.graphic_context, *self.graphic_context.get_command_buffer(image_index), data).unwrap();
-            }
+            imgui_renderer
+                .cmd_draw(&self.graphic_context, *self.graphic_context.get_command_buffer(self.curr_image_index), draw_data)
+                .unwrap();
         }
-        self.graphic_context.end_command_buffer(image_index);
+    }
 
-        self.graphic_context.submit_queue(image_index);
-        match self.graphic_context.present_queue(image_index as u32) {
+    pub fn end_frame(&mut self) {
+        self.graphic_context.end_command_buffer(self.curr_image_index);
+
+        self.graphic_context.submit_queue(self.curr_image_index);
+        match self.graphic_context.present_queue(self.curr_image_index as u32) {
             Ok(_) => {}
             Err(_) => self.graphic_context.recreate_swapchain(),
         };
 
         self.graphic_context.sync_objects.increment_frame();
+    }
+
+    pub fn create_mesh(&self, vertices: &[Vertex], indices: Option<&[u16]>) -> Mesh {
+        Mesh::new(vertices, indices, &self.graphic_context)
+    }
+
+    pub fn render_mesh(&self, mesh: &Mesh) {
+        mesh.render(self.graphic_context.get_device(), self.graphic_context.get_command_buffer(self.curr_image_index));
+    }
+
+    pub fn cleanup_mesh(&self, mesh: &Mesh) {
+        self.graphic_context.wait_device();
+        mesh.cleanup(&self.graphic_context);
     }
 }
 
@@ -84,10 +99,6 @@ impl Drop for Renderer {
 
         if let Some(imgui_renderer) = &mut self.imgui_renderer {
             imgui_renderer.destroy(&self.graphic_context).unwrap();
-        }
-
-        for model in self.models.iter() {
-            model.cleanup(&self.graphic_context)
         }
 
         self.graphic_context.cleanup();
