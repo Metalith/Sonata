@@ -13,8 +13,4 @@ impl Model {
     pub fn render(&self, renderer: &Renderer) {
         renderer.render_mesh(&self.mesh);
     }
-
-    pub fn cleanup(&self, renderer: &Renderer) {
-        renderer.cleanup_mesh(&self.mesh);
-    }
 }

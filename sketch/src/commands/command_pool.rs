@@ -1,34 +1,41 @@
-use crate::{device::PhysicalDevice, GraphicContext, VulkanObject};
+use std::sync::Arc;
 
-use ash::{version::DeviceV1_0, vk, Device};
+use crate::{device::Device, VulkanObject};
+
+use ash::{version::DeviceV1_0, vk};
 
 pub struct CommandPool {
+    device: Arc<Device>,
     command_pool: vk::CommandPool,
 }
 
 impl CommandPool {
-    pub fn new(device: &Device, physical_device: &PhysicalDevice) -> Self {
+    pub fn new(device: Arc<Device>) -> Arc<Self> {
+        trace!("Creating Command Pool");
         let pool_info = vk::CommandPoolCreateInfo::builder()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(*physical_device.graphics_index())
+            .queue_family_index(device.physical_device().graphics_index())
             .build();
 
-        let command_pool = unsafe { device.create_command_pool(&pool_info, None).unwrap() };
+        let command_pool = unsafe { device.vk().create_command_pool(&pool_info, None).unwrap() };
 
-        CommandPool { command_pool }
+        CommandPool { device, command_pool }.into()
     }
 }
 
 impl VulkanObject for CommandPool {
     type Object = vk::CommandPool;
 
-    fn vulkan_object(&self) -> &Self::Object {
+    fn vk(&self) -> &Self::Object {
         &self.command_pool
     }
+}
 
-    fn cleanup(&self, _context: &GraphicContext) {
+impl Drop for CommandPool {
+    fn drop(&mut self) {
+        trace!("Dropping Command Pool");
         unsafe {
-            _context.get_device().destroy_command_pool(self.command_pool, None);
+            self.device.vk().destroy_command_pool(self.command_pool, None);
         }
     }
 }

@@ -1,7 +1,4 @@
-use crate::{
-    utilities::{utility, DebugMessenger},
-    GraphicContext, VulkanObject,
-};
+use crate::VulkanObject;
 
 use ash::{
     extensions::{
@@ -12,18 +9,20 @@ use ash::{
     vk, Entry,
 };
 
-use std::{ffi::CString, os::raw::c_void, ptr};
+use std::{ffi::CString, os::raw::c_void, ptr, sync::Arc};
+
+use super::DebugMessenger;
 
 pub struct Instance {
-    debug_messenger: DebugMessenger,
+    entry: Entry,
     instance: ash::Instance,
 }
 
 impl Instance {
-    pub fn new(entry: &Entry) -> Self {
-        let validation_enabled = utility::validation_enabled();
+    pub fn new(validation: bool) -> Arc<Self> {
+        let entry = Entry::new().unwrap();
 
-        if validation_enabled && !DebugMessenger::check_validation_layer_support(&entry) {
+        if validation && !DebugMessenger::check_validation_layer_support(&entry) {
             panic!("Validation layers requested not supported");
         }
 
@@ -40,7 +39,7 @@ impl Instance {
         let (_names, validation_layers) = DebugMessenger::get_validation_layers_vk();
 
         let mut extensions = Self::required_extension_names();
-        if validation_enabled {
+        if validation {
             extensions.push(DebugUtils::name().as_ptr());
         }
 
@@ -48,39 +47,44 @@ impl Instance {
 
         let create_info = vk::InstanceCreateInfo {
             p_application_info: &app_info,
-            p_next: if validation_enabled {
+            p_next: if validation {
                 &debug_create_info as *const vk::DebugUtilsMessengerCreateInfoEXT as *const c_void
             } else {
                 ptr::null()
             },
-            pp_enabled_layer_names: if validation_enabled { validation_layers.as_ptr() } else { ptr::null() },
-            enabled_layer_count: if validation_enabled { validation_layers.len() } else { 0 } as u32,
+            pp_enabled_layer_names: if validation { validation_layers.as_ptr() } else { ptr::null() },
+            enabled_layer_count: if validation { validation_layers.len() } else { 0 } as u32,
             pp_enabled_extension_names: extensions.as_ptr(),
             enabled_extension_count: extensions.len() as u32,
             ..Default::default()
         };
 
         let instance: ash::Instance = unsafe { entry.create_instance(&create_info, None).expect("Failed to create instance") };
-        let debug_messenger = DebugMessenger::new(&entry, &instance);
 
-        Instance { instance, debug_messenger }
+        Arc::new(Instance { entry, instance })
     }
 
     fn required_extension_names() -> Vec<*const i8> {
         vec![Surface::name().as_ptr(), Win32Surface::name().as_ptr()]
+    }
+
+    pub fn entry(&self) -> &Entry {
+        &self.entry
     }
 }
 
 impl VulkanObject for Instance {
     type Object = ash::Instance;
 
-    fn vulkan_object(&self) -> &Self::Object {
+    fn vk(&self) -> &Self::Object {
         &self.instance
     }
+}
 
-    fn cleanup(&self, _context: &GraphicContext) {
+impl Drop for Instance {
+    fn drop(&mut self) {
+        trace!("Dropping Instance");
         unsafe {
-            self.debug_messenger.cleanup(_context);
             self.instance.destroy_instance(None);
         }
     }

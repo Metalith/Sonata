@@ -1,19 +1,20 @@
-use super::shader;
-use crate::{models::Vertex, renderpasses::RenderPass, GraphicContext, VulkanObject};
+use super::{shader, DescriptorLayout};
+use crate::{device::Device, models::Vertex, renderpasses::RenderPass, VulkanObject};
 
-use ash::{version::DeviceV1_0, vk, Device};
+use ash::{version::DeviceV1_0, vk};
 
-use std::ffi::CString;
+use std::{ffi::CString, sync::Arc};
 
 pub struct Pipeline {
+    device: Arc<Device>,
     pipeline_layout: vk::PipelineLayout,
     pipeline: vk::Pipeline,
 }
 
 impl Pipeline {
-    pub fn new(device: &Device, render_pass: &RenderPass, descriptor_layout: vk::DescriptorSetLayout) -> Pipeline {
-        let vert_shader = shader::create_shader_module("assets/gen/shaders/shader.vert.spv", device).unwrap();
-        let frag_shader = shader::create_shader_module("assets/gen/shaders/shader.frag.spv", device).unwrap();
+    pub fn new(device: Arc<Device>, render_pass: &Arc<RenderPass>, descriptor_layout: &Arc<DescriptorLayout>) -> Arc<Pipeline> {
+        let vert_shader = shader::create_shader_module("assets/gen/shaders/shader.vert.spv", &device).unwrap();
+        let frag_shader = shader::create_shader_module("assets/gen/shaders/shader.frag.spv", &device).unwrap();
 
         let entry_point_name = CString::new("main").unwrap();
 
@@ -68,10 +69,10 @@ impl Pipeline {
 
         let color_blending = vk::PipelineColorBlendStateCreateInfo::builder().logic_op_enable(false).attachments(&[color_blend_attachment]).build();
 
-        let set_layouts = [descriptor_layout];
+        let set_layouts = [*descriptor_layout.vk()];
         let pipeline_layout_info = vk::PipelineLayoutCreateInfo::builder().set_layouts(&set_layouts).build();
 
-        let pipeline_layout = unsafe { device.create_pipeline_layout(&pipeline_layout_info, None).unwrap() };
+        let pipeline_layout = unsafe { device.vk().create_pipeline_layout(&pipeline_layout_info, None).unwrap() };
 
         let dynamic_states = vec![vk::DynamicState::SCISSOR, vk::DynamicState::VIEWPORT];
         let dynamic_states_info = vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_states).build();
@@ -85,19 +86,20 @@ impl Pipeline {
             .multisample_state(&multisampling)
             .color_blend_state(&color_blending)
             .layout(pipeline_layout)
-            .render_pass(*render_pass.vulkan_object())
+            .render_pass(*render_pass.vk())
             .dynamic_state(&dynamic_states_info)
             .subpass(0)
             .build();
 
-        let pipeline = unsafe { device.create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_create_info], None).unwrap()[0] };
+        let pipeline = unsafe { device.vk().create_graphics_pipelines(vk::PipelineCache::null(), &[pipeline_create_info], None).unwrap()[0] };
 
+        //TODO: Manage these in a shader struct to ensure resources are destroyed
         unsafe {
-            device.destroy_shader_module(vert_shader, None);
-            device.destroy_shader_module(frag_shader, None);
+            device.vk().destroy_shader_module(vert_shader, None);
+            device.vk().destroy_shader_module(frag_shader, None);
         }
 
-        Pipeline { pipeline_layout, pipeline }
+        Pipeline { device, pipeline_layout, pipeline }.into()
     }
 
     pub fn get_layout(&self) -> &vk::PipelineLayout {
@@ -108,14 +110,17 @@ impl Pipeline {
 impl VulkanObject for Pipeline {
     type Object = vk::Pipeline;
 
-    fn vulkan_object(&self) -> &Self::Object {
+    fn vk(&self) -> &Self::Object {
         &self.pipeline
     }
+}
 
-    fn cleanup(&self, _context: &GraphicContext) {
+impl Drop for Pipeline {
+    fn drop(&mut self) {
+        trace!("Dropping Pipeline");
         unsafe {
-            _context.get_device().destroy_pipeline(self.pipeline, None);
-            _context.get_device().destroy_pipeline_layout(self.pipeline_layout, None);
+            self.device.vk().destroy_pipeline(self.pipeline, None);
+            self.device.vk().destroy_pipeline_layout(self.pipeline_layout, None);
         }
     }
 }

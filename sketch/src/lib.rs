@@ -6,6 +6,7 @@ extern crate winapi;
 
 mod buffers;
 mod commands;
+mod constants;
 pub mod device;
 mod graphic_context;
 pub mod models;
@@ -20,6 +21,5 @@ pub use renderer::Renderer;
 
 pub trait VulkanObject {
     type Object;
-    fn vulkan_object(&self) -> &Self::Object;
-    fn cleanup(&self, _context: &GraphicContext);
+    fn vk(&self) -> &Self::Object;
 }

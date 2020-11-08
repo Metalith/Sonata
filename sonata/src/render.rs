@@ -1,6 +1,5 @@
-use specs::{Join, Read, ReadStorage, System, Write};
-
 use sketch::models::Vertex;
+use specs::{Join, Read, ReadStorage, System, Write};
 
 use imgui::*;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -18,7 +17,6 @@ pub struct RenderSystem {
     imgui: Context,
     platform: WinitPlatform,
     window_focused: bool,
-
     models: Vec<Model>,
 }
 
@@ -174,8 +172,6 @@ impl<'a> System<'a> for RenderSystem {
 //TODO: Remove drop trait. Call cleanup from loop exit
 impl Drop for RenderSystem {
     fn drop(&mut self) {
-        for model in self.models.iter() {
-            model.cleanup(&self.renderer);
-        }
+        trace!("Dropping RenderSystem");
     }
 }

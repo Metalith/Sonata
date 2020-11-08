@@ -1,7 +1,9 @@
-use super::Buffer;
-use crate::{device::PhysicalDevice, GraphicContext, VulkanObject};
+use std::sync::Arc;
 
-use ash::{vk, Device};
+use super::Buffer;
+use crate::{device::Device, VulkanObject};
+
+use ash::vk;
 
 #[derive(Copy, Clone)]
 #[allow(dead_code)]
@@ -21,32 +23,33 @@ pub struct UniformBufferObject {
 }
 
 impl UniformBufferObject {
-    pub fn new(logical_device: &Device, physical_device: &PhysicalDevice) -> UniformBufferObject {
+    pub fn new(device: &Arc<Device>) -> UniformBufferObject {
         let buffer_size = UniformTestObject::get_size();
         let buffer = Buffer::new(
             buffer_size,
             vk::BufferUsageFlags::UNIFORM_BUFFER,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-            logical_device,
-            physical_device,
+            device.clone(),
         );
 
         UniformBufferObject { buffer }
     }
 
-    pub fn update2<A, T: Copy>(&self, context: &GraphicContext, object: &[T]) {
-        self.buffer.map_memory::<f32, _>(object, context)
+    pub fn update2<A, T: Copy>(&self, object: &[T]) {
+        self.buffer.map_memory::<f32, _>(object)
     }
 }
 
 impl VulkanObject for UniformBufferObject {
     type Object = vk::Buffer;
 
-    fn vulkan_object(&self) -> &Self::Object {
-        &self.buffer.vulkan_object()
+    fn vk(&self) -> &Self::Object {
+        &self.buffer.vk()
     }
+}
 
-    fn cleanup(&self, _context: &GraphicContext) {
-        self.buffer.cleanup(_context);
+impl Drop for UniformBufferObject {
+    fn drop(&mut self) {
+        trace!("Dropping Uniform Buffer Object");
     }
 }

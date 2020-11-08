@@ -37,7 +37,7 @@ impl Renderer {
     }
 
     pub fn begin_frame(&mut self) -> bool {
-        self.graphic_context.sync_objects.wait_fence_current(self.graphic_context.get_device());
+        self.graphic_context.sync_objects.wait_fence_current();
 
         if !self.graphic_context.get_window().is_window_visible() {
             return false;
@@ -53,7 +53,7 @@ impl Renderer {
 
         self.graphic_context.update_uniforms(self.curr_image_index, &self.camera_pos, &self.camera_dir, &self.camera_up);
 
-        self.graphic_context.sync_objects.wait_fence_image(self.graphic_context.get_device(), self.curr_image_index);
+        self.graphic_context.sync_objects.wait_fence_image(self.curr_image_index);
 
         self.graphic_context.begin_command_buffer(self.curr_image_index);
         true
@@ -80,27 +80,21 @@ impl Renderer {
     }
 
     pub fn create_mesh(&self, vertices: &[Vertex], indices: Option<&[u16]>) -> Mesh {
-        Mesh::new(vertices, indices, &self.graphic_context)
+        Mesh::new(vertices, indices, &self.graphic_context.get_device())
     }
 
     pub fn render_mesh(&self, mesh: &Mesh) {
         mesh.render(self.graphic_context.get_device(), self.graphic_context.get_command_buffer(self.curr_image_index));
     }
-
-    pub fn cleanup_mesh(&self, mesh: &Mesh) {
-        self.graphic_context.wait_device();
-        mesh.cleanup(&self.graphic_context);
-    }
 }
 
 impl Drop for Renderer {
     fn drop(&mut self) {
+        trace!("Dropping Renderer");
         self.graphic_context.wait_device();
 
         if let Some(imgui_renderer) = &mut self.imgui_renderer {
             imgui_renderer.destroy(&self.graphic_context).unwrap();
         }
-
-        self.graphic_context.cleanup();
     }
 }

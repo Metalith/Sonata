@@ -1,16 +1,18 @@
-use super::SwapChain;
-use crate::{GraphicContext, VulkanObject};
+use std::sync::Arc;
 
-use ash::{version::DeviceV1_0, vk, Device};
+use crate::{device::Device, VulkanObject};
+
+use ash::{version::DeviceV1_0, vk};
 
 pub struct RenderPass {
+    device: Arc<Device>,
     render_pass: vk::RenderPass,
 }
 
 impl RenderPass {
-    pub fn new(device: &Device, swapchain: &SwapChain) -> RenderPass {
+    pub fn new(device: Arc<Device>, format: vk::Format) -> Arc<RenderPass> {
         let color_attachment = vk::AttachmentDescription::builder()
-            .format(swapchain.surface_format().format)
+            .format(format)
             .samples(vk::SampleCountFlags::TYPE_1)
             .load_op(vk::AttachmentLoadOp::CLEAR)
             .store_op(vk::AttachmentStoreOp::STORE)
@@ -42,22 +44,25 @@ impl RenderPass {
             .dependencies(&[dependency])
             .build();
 
-        let render_pass = unsafe { device.create_render_pass(&render_pass_info, None).unwrap() };
+        let render_pass = unsafe { device.vk().create_render_pass(&render_pass_info, None).unwrap() };
 
-        RenderPass { render_pass }
+        RenderPass { device, render_pass }.into()
     }
 }
 
 impl VulkanObject for RenderPass {
     type Object = vk::RenderPass;
 
-    fn vulkan_object(&self) -> &Self::Object {
+    fn vk(&self) -> &Self::Object {
         &self.render_pass
     }
+}
 
-    fn cleanup(&self, _context: &GraphicContext) {
+impl Drop for RenderPass {
+    fn drop(&mut self) {
+        trace!("Dropping Renderpass");
         unsafe {
-            _context.get_device().destroy_render_pass(self.render_pass, None);
+            self.device.vk().destroy_render_pass(self.render_pass, None);
         }
     }
 }

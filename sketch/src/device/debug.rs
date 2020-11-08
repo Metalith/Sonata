@@ -1,41 +1,35 @@
-use super::utility;
-use crate::{GraphicContext, VulkanObject};
+use crate::{utilities::vk_to_str, VulkanObject};
 
-use ash::{version::EntryV1_0, vk, Entry, Instance};
+use ash::{version::EntryV1_0, vk, Entry};
 
 use std::{
     ffi::{CStr, CString},
     os::raw::c_void,
+    sync::Arc,
 };
 
+use super::Instance;
+
 pub struct DebugMessenger {
+    _instance: Arc<Instance>,
+
     debug_messenger: vk::DebugUtilsMessengerEXT,
     debug_loader: ash::extensions::ext::DebugUtils,
-    validation_enabled: bool,
 }
 
 impl DebugMessenger {
-    pub fn new(entry: &Entry, instance: &Instance) -> Self {
-        // TODO: Disable this module if not debugging
-        let loader = ash::extensions::ext::DebugUtils::new(entry, instance);
+    pub fn new(instance: &Arc<Instance>) -> Arc<Self> {
+        let loader = ash::extensions::ext::DebugUtils::new(instance.entry(), instance.vk());
 
         let create_info = Self::populate_debug_messenger_create_info();
 
-        let validation_enabled = utility::validation_enabled();
+        let utils_messenger = unsafe { loader.create_debug_utils_messenger(&create_info, None).expect("Failed to create debug messenger`") };
 
-        let utils_messenger = unsafe {
-            if validation_enabled {
-                loader.create_debug_utils_messenger(&create_info, None).expect("Failed to create debug messenger`")
-            } else {
-                ash::vk::DebugUtilsMessengerEXT::null()
-            }
-        };
-
-        DebugMessenger {
+        Arc::new(DebugMessenger {
             debug_messenger: utils_messenger,
             debug_loader: loader,
-            validation_enabled,
-        }
+            _instance: instance.clone(),
+        })
     }
 
     pub fn check_validation_layer_support(entry: &Entry) -> bool {
@@ -48,7 +42,7 @@ impl DebugMessenger {
         } else {
             debug!("Instance Available Layers:");
             for layer in available_layers.iter() {
-                let name = utility::vk_to_str(&layer.layer_name);
+                let name = vk_to_str(&layer.layer_name);
                 debug!("\t{}", name);
             }
         }
@@ -57,7 +51,7 @@ impl DebugMessenger {
             let mut layer_found = false;
 
             for layer in available_layers.iter() {
-                let layer_name = utility::vk_to_str(&layer.layer_name);
+                let layer_name = vk_to_str(&layer.layer_name);
                 if required_layer_name == layer_name {
                     layer_found = true;
                 }
@@ -95,18 +89,11 @@ impl DebugMessenger {
     }
 }
 
-impl VulkanObject for DebugMessenger {
-    type Object = vk::DebugUtilsMessengerEXT;
-
-    fn vulkan_object(&self) -> &Self::Object {
-        &self.debug_messenger
-    }
-
-    fn cleanup(&self, _context: &GraphicContext) {
-        if self.validation_enabled {
-            unsafe {
-                self.debug_loader.destroy_debug_utils_messenger(self.debug_messenger, None);
-            }
+impl Drop for DebugMessenger {
+    fn drop(&mut self) {
+        trace!("Dropping Debug Messenger");
+        unsafe {
+            self.debug_loader.destroy_debug_utils_messenger(self.debug_messenger, None);
         }
     }
 }

@@ -1,11 +1,15 @@
+use std::sync::Arc;
+
 use crate::{
-    device::{PhysicalDevice, Surface, Window},
-    GraphicContext, VulkanObject,
+    device::{Device, Surface, Window},
+    VulkanObject,
 };
 
-use ash::{extensions::khr, version::DeviceV1_0, vk, Device, Instance};
+use ash::{extensions::khr, version::DeviceV1_0, vk};
 
 pub struct SwapChain {
+    device: Arc<Device>,
+    _surface: Arc<Surface>,
     swapchain_loader: khr::Swapchain,
     swapchain: vk::SwapchainKHR,
     surface_format: vk::SurfaceFormatKHR,
@@ -15,8 +19,8 @@ pub struct SwapChain {
 }
 
 impl SwapChain {
-    pub fn new(instance: &Instance, logical_device: &Device, physical_device: &PhysicalDevice, surface: &Surface, window: &Window) -> Self {
-        let swapchain_support = Self::query_support(*physical_device.vulkan_object(), surface);
+    pub fn new(device: Arc<Device>, surface: Arc<Surface>, window: &Window, old_swapchain: Option<&Arc<SwapChain>>) -> Arc<Self> {
+        let swapchain_support = Self::query_support(*device.physical_device().vk(), &surface);
 
         let surface_format = Self::choose_surface_format(swapchain_support.formats);
         let present_mode = Self::choose_present_mode(swapchain_support.present_modes);
@@ -28,7 +32,7 @@ impl SwapChain {
         }
 
         let mut create_info_builder = vk::SwapchainCreateInfoKHR::builder()
-            .surface(*surface.vulkan_object())
+            .surface(*surface.vk())
             .min_image_count(image_count)
             .image_format(surface_format.format)
             .image_color_space(surface_format.color_space)
@@ -36,21 +40,31 @@ impl SwapChain {
             .image_array_layers(1)
             .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT);
 
-        let queue_indices = [*physical_device.graphics_index(), *physical_device.present_index()];
-        create_info_builder = if physical_device.graphics_index() != physical_device.present_index() {
+        let queue_indices = [device.physical_device().graphics_index(), device.physical_device().present_index()];
+        create_info_builder = if device.physical_device().graphics_index() != device.physical_device().present_index() {
             create_info_builder.image_sharing_mode(vk::SharingMode::CONCURRENT).queue_family_indices(&queue_indices)
         } else {
             create_info_builder.image_sharing_mode(vk::SharingMode::EXCLUSIVE)
         };
 
-        let create_info = create_info_builder
-            .pre_transform(swapchain_support.capabilities.current_transform)
-            .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-            .present_mode(present_mode)
-            .clipped(true)
-            .build();
+        let create_info = if let Some(old_swapchain) = old_swapchain {
+            create_info_builder
+                .pre_transform(swapchain_support.capabilities.current_transform)
+                .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
+                .present_mode(present_mode)
+                .old_swapchain(*old_swapchain.vk())
+                .clipped(true)
+                .build()
+        } else {
+            create_info_builder
+                .pre_transform(swapchain_support.capabilities.current_transform)
+                .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
+                .present_mode(present_mode)
+                .clipped(true)
+                .build()
+        };
 
-        let swapchain_loader = khr::Swapchain::new(instance, logical_device);
+        let swapchain_loader = khr::Swapchain::new(device.instance().vk(), device.vk());
         let swapchain = unsafe { swapchain_loader.create_swapchain(&create_info, None).unwrap() };
         let images = unsafe { swapchain_loader.get_swapchain_images(swapchain).unwrap() };
         let mut image_views: Vec<vk::ImageView> = Vec::new();
@@ -79,24 +93,26 @@ impl SwapChain {
                 )
                 .build();
 
-            unsafe { image_views.push(logical_device.create_image_view(&image_create_info, None).unwrap()) };
+            unsafe { image_views.push(device.vk().create_image_view(&image_create_info, None).unwrap()) };
         }
 
-        SwapChain {
+        Arc::new(SwapChain {
+            device,
+            _surface: surface,
             swapchain_loader,
             swapchain,
             surface_format,
             extent,
             images,
             image_views,
-        }
+        })
     }
 
-    pub fn query_support(device: vk::PhysicalDevice, surface: &Surface) -> SwapChainSupportDetails {
+    pub fn query_support(device: vk::PhysicalDevice, surface: &Arc<Surface>) -> SwapChainSupportDetails {
         SwapChainSupportDetails {
-            capabilities: unsafe { surface.get_loader().get_physical_device_surface_capabilities(device, *surface.vulkan_object()).unwrap() },
-            formats: unsafe { surface.get_loader().get_physical_device_surface_formats(device, *surface.vulkan_object()).unwrap() },
-            present_modes: unsafe { surface.get_loader().get_physical_device_surface_present_modes(device, *surface.vulkan_object()).unwrap() },
+            capabilities: unsafe { surface.get_loader().get_physical_device_surface_capabilities(device, *surface.vk()).unwrap() },
+            formats: unsafe { surface.get_loader().get_physical_device_surface_formats(device, *surface.vk()).unwrap() },
+            present_modes: unsafe { surface.get_loader().get_physical_device_surface_present_modes(device, *surface.vk()).unwrap() },
         }
     }
 
@@ -171,14 +187,17 @@ impl SwapChain {
 impl VulkanObject for SwapChain {
     type Object = vk::SwapchainKHR;
 
-    fn vulkan_object(&self) -> &Self::Object {
+    fn vk(&self) -> &Self::Object {
         &self.swapchain
     }
+}
 
-    fn cleanup(&self, _context: &GraphicContext) {
+impl Drop for SwapChain {
+    fn drop(&mut self) {
+        trace!("Dropping Swapchain");
         unsafe {
             for &image_view in self.image_views.iter() {
-                _context.get_device().destroy_image_view(image_view, None);
+                self.device.vk().destroy_image_view(image_view, None);
             }
             self.swapchain_loader.destroy_swapchain(self.swapchain, None);
         }

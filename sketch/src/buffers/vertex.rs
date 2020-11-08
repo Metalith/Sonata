@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use super::Buffer;
-use crate::{models::Vertex, GraphicContext, VulkanObject};
+
+use crate::{device::Device, models::Vertex, VulkanObject};
 
 use ash::vk;
 
@@ -9,26 +12,23 @@ pub struct VertexBuffer {
 }
 
 impl VertexBuffer {
-    pub fn new(vertices: &[Vertex], context: &GraphicContext) -> VertexBuffer {
+    pub fn new(vertices: &[Vertex], device: &Arc<Device>) -> VertexBuffer {
         let buffer_size = std::mem::size_of_val(vertices) as u64;
         let staging_buffer = Buffer::new(
             buffer_size,
             vk::BufferUsageFlags::TRANSFER_SRC,
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-            context.get_device(),
-            context.get_physical_device(),
+            device.clone(),
         );
-        staging_buffer.map_memory::<u32, _>(vertices, context);
+        staging_buffer.map_memory::<u32, _>(vertices);
 
         let vertex_buffer = Buffer::new(
             buffer_size,
             vk::BufferUsageFlags::TRANSFER_DST | vk::BufferUsageFlags::VERTEX_BUFFER,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
-            context.get_device(),
-            context.get_physical_device(),
+            device.clone(),
         );
-        Buffer::copy_buffer(*staging_buffer.vulkan_object(), *vertex_buffer.vulkan_object(), buffer_size, context);
-        staging_buffer.cleanup(context);
+        Buffer::copy_buffer(&staging_buffer, &vertex_buffer, buffer_size, &device);
 
         VertexBuffer {
             vertices: vertices.to_vec(),
@@ -44,11 +44,13 @@ impl VertexBuffer {
 impl VulkanObject for VertexBuffer {
     type Object = vk::Buffer;
 
-    fn vulkan_object(&self) -> &Self::Object {
-        &self.buffer.vulkan_object()
+    fn vk(&self) -> &Self::Object {
+        &self.buffer.vk()
     }
+}
 
-    fn cleanup(&self, _context: &GraphicContext) {
-        self.buffer.cleanup(_context);
+impl Drop for VertexBuffer {
+    fn drop(&mut self) {
+        trace!("Dropping Vertex Buffer");
     }
 }
