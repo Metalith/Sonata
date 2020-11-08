@@ -168,10 +168,3 @@ impl<'a> System<'a> for RenderSystem {
         }
     }
 }
-
-//TODO: Remove drop trait. Call cleanup from loop exit
-impl Drop for RenderSystem {
-    fn drop(&mut self) {
-        trace!("Dropping RenderSystem");
-    }
-}

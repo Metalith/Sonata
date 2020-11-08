@@ -102,7 +102,6 @@ impl Device {
         }
     }
 
-    // TODO: Hold multiple pools and retrieve or create to fit the layout
     pub fn descriptor_pool(self: &Arc<Self>) -> Arc<DescriptorPool> {
         let mut descriptor_pool = self.descriptor_pool.lock().unwrap();
 
