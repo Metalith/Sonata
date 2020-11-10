@@ -1,7 +1,7 @@
 use crate::{
     device::window::{HINSTANCE, HWND},
     graphic_context::GraphicContext,
-    models::{Mesh, Vertex},
+    models::{Mesh, MeshFactory},
 };
 
 pub struct Renderer {
@@ -79,8 +79,8 @@ impl Renderer {
         self.graphic_context.sync_objects.increment_frame();
     }
 
-    pub fn create_mesh(&self, vertices: &[Vertex], indices: Option<&[u16]>) -> Mesh {
-        Mesh::new(vertices, indices, &self.graphic_context.get_device())
+    pub fn create_mesh_factory(&self) -> MeshFactory {
+        MeshFactory::new(self.graphic_context.get_device().clone())
     }
 
     pub fn render_mesh(&self, mesh: &Mesh) {

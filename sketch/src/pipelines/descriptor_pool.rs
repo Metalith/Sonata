@@ -1,7 +1,4 @@
-use std::{
-    cell::Cell,
-    sync::{Arc, Mutex, Weak},
-};
+use std::sync::{Arc, Mutex, Weak};
 
 use crate::{
     buffers::{UniformBufferObject, UniformTestObject},
@@ -16,12 +13,12 @@ use super::DescriptorLayout;
 struct Pool {
     device: Arc<Device>,
     descriptor_pool: vk::DescriptorPool,
-    remaining_descriptor_count: Cell<u32>,
-    remaining_sets_count: Cell<u32>,
+    remaining_descriptor_count: u32,
+    remaining_sets_count: u32,
 }
 
 impl Pool {
-    pub fn new(device: Arc<Device>, descriptor_count: u32, set_count: u32) -> Arc<Pool> {
+    pub fn new(device: Arc<Device>, descriptor_count: u32, set_count: u32) -> Pool {
         trace!("Creating Descriptor Pool");
         let pool_sizes = [vk::DescriptorPoolSize::builder().descriptor_count(descriptor_count).build()];
 
@@ -32,10 +29,9 @@ impl Pool {
         Pool {
             device,
             descriptor_pool,
-            remaining_descriptor_count: Cell::new(descriptor_count),
-            remaining_sets_count: Cell::new(set_count),
+            remaining_descriptor_count: descriptor_count,
+            remaining_sets_count: set_count,
         }
-        .into()
     }
 
     // TODO: Return success/fail
@@ -67,7 +63,7 @@ impl Drop for Pool {
 
 pub struct DescriptorPool {
     device: Arc<Device>,
-    pools: Mutex<Vec<Weak<Pool>>>,
+    pools: Mutex<Vec<Weak<Mutex<Pool>>>>,
 }
 
 impl DescriptorPool {
@@ -84,39 +80,42 @@ impl DescriptorPool {
 
         for pool_arc in pools.iter_mut() {
             if let Some(pool) = pool_arc.upgrade() {
-                if pool.remaining_sets_count.get() == 0 {
+                let mut pool_mut = pool.lock().unwrap();
+                if pool_mut.remaining_sets_count == 0 {
                     continue;
                 }
 
                 // TODO: Add a descriptor count here
-                if pool.remaining_descriptor_count.get() < descriptor_layouts.len() as u32 {
+                if pool_mut.remaining_descriptor_count < descriptor_layouts.len() as u32 {
                     continue;
                 }
 
-                pool.remaining_sets_count.set(pool.remaining_sets_count.get() - descriptor_layouts.len() as u32);
-                pool.remaining_descriptor_count.set(pool.remaining_descriptor_count.get() - descriptor_layouts.len() as u32);
+                pool_mut.remaining_sets_count -= descriptor_layouts.len() as u32;
+                pool_mut.remaining_descriptor_count -= descriptor_layouts.len() as u32;
 
                 return DescriptorPoolAlloc {
                     _pool_parent: self.clone(),
                     pool: pool.clone(),
-                    sets: pool.alloc(descriptor_layouts),
+                    sets: pool_mut.alloc(descriptor_layouts),
                 }
                 .into();
             }
         }
 
-        pools.retain(|x| Option::is_some(&x.upgrade()));
+        pools.retain(|x| x.upgrade().is_some());
 
-        let pool = Pool::new(self.device.clone(), 40, 40);
-        pools.push(Arc::downgrade(&pool));
+        let mut pool = Pool::new(self.device.clone(), 40, 40);
+        let sets = pool.alloc(descriptor_layouts);
+        pool.remaining_sets_count -= descriptor_layouts.len() as u32;
+        pool.remaining_descriptor_count -= descriptor_layouts.len() as u32;
 
-        pool.remaining_sets_count.set(pool.remaining_sets_count.get() - descriptor_layouts.len() as u32);
-        pool.remaining_descriptor_count.set(pool.remaining_descriptor_count.get() - descriptor_layouts.len() as u32);
+        let pool_arc = Arc::new(Mutex::new(pool));
+        pools.push(Arc::downgrade(&pool_arc));
 
         DescriptorPoolAlloc {
             _pool_parent: self.clone(),
-            pool: pool.clone(),
-            sets: pool.alloc(descriptor_layouts),
+            pool: pool_arc,
+            sets,
         }
         .into()
     }
@@ -124,7 +123,7 @@ impl DescriptorPool {
 
 pub struct DescriptorPoolAlloc {
     _pool_parent: Arc<DescriptorPool>,
-    pool: Arc<Pool>,
+    pool: Arc<Mutex<Pool>>,
     sets: Vec<vk::DescriptorSet>,
 }
 
@@ -151,7 +150,8 @@ impl DescriptorPoolAlloc {
 
             let null = [];
 
-            unsafe { self.pool.device.vk().update_descriptor_sets(&descriptor_writes, &null) };
+            let pool = self.pool.lock().unwrap();
+            unsafe { pool.device.vk().update_descriptor_sets(&descriptor_writes, &null) };
         });
     }
 }

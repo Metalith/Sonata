@@ -4,7 +4,7 @@ extern crate ultraviolet as uv;
 
 mod components;
 mod control;
-mod model;
+mod entity_factory;
 mod movement;
 mod render;
 mod timestep;
@@ -12,6 +12,7 @@ mod timestep;
 use std::time::Instant;
 
 pub use components::*;
+use entity_factory::EntityFactory;
 pub use timestep::*;
 
 use control::ControlSystem;
@@ -22,6 +23,7 @@ use specs::*;
 use winit::{
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    platform::windows::WindowExtWindows,
     window::WindowBuilder,
 };
 
@@ -32,33 +34,22 @@ fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().with_title("Rusty Sonata").build(&event_loop).unwrap();
 
+    let renderer = sketch::Renderer::new(window.hwnd(), window.hinstance());
+    let entity_factory = EntityFactory::new(renderer.create_mesh_factory());
+
     let mut world = World::new();
-    world.register::<Player>();
-    world.register::<Transform>();
-    world.register::<Movement>();
-
-    world.insert(DeltaTime::default());
-    world.insert(WinitEventData::default());
-    world.insert(ControlData::default());
-
-    // Player
-    world
-        .create_entity()
-        .with(Player::default())
-        .with(Movement::default())
-        .with(Transform {
-            pos: uv::Vec3::new(0.0, 0.0, 4.0),
-            dir: uv::Rotor3::from_euler_angles(0.0f32.to_radians(), 0.0, 180.0f32.to_radians()), // Look at center from above due to colinearity
-        })
-        .build();
-
-    // XY Grid
-
     let mut dispatcher = DispatcherBuilder::new()
         .with(ControlSystem::new(), "Control", &[])
         .with(MoveSystem::new(), "Move", &[])
-        .with_thread_local(RenderSystem::new(window))
+        .with_thread_local(RenderSystem::new(window, renderer))
         .build();
+    dispatcher.setup(&mut world);
+
+    // Player
+    entity_factory.create_player(&mut world, [0.0, 0.0, 4.0]);
+
+    // XY Grid
+    entity_factory.create_grid(&mut world);
 
     let mut last_frame = Instant::now();
     event_loop.run(move |event, _, control_flow| {

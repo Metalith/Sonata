@@ -1,15 +1,13 @@
-use sketch::models::Vertex;
 use specs::{Join, Read, ReadStorage, System, Write};
 
 use imgui::*;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use winit::{
     event::{Event, WindowEvent},
-    platform::windows::WindowExtWindows,
     window::Window,
 };
 
-use crate::{model::Model, ControlData, DeltaTime, MouseState, Player, Transform, WinitEventData};
+use crate::{ControlData, DeltaTime, MouseState, Player, Renderable, Transform, WinitEventData};
 
 pub struct RenderSystem {
     renderer: sketch::Renderer,
@@ -17,14 +15,27 @@ pub struct RenderSystem {
     imgui: Context,
     platform: WinitPlatform,
     window_focused: bool,
-    models: Vec<Model>,
 }
 
 impl RenderSystem {
-    pub fn new(win: Window) -> Self {
+    pub fn new(window: Window, renderer: sketch::Renderer) -> Self {
+        let mut renderer = renderer;
+        let (mut imgui, platform) = Self::configure_imgui(&window);
+        renderer.add_imgui_renderer(&mut imgui);
+
+        RenderSystem {
+            renderer,
+            win: window,
+            imgui,
+            platform,
+            window_focused: true,
+        }
+    }
+
+    fn configure_imgui(window: &Window) -> (Context, WinitPlatform) {
         let mut imgui = Context::create();
         let mut platform = WinitPlatform::init(&mut imgui);
-        platform.attach_window(imgui.io_mut(), &win, HiDpiMode::Default);
+        platform.attach_window(imgui.io_mut(), window, HiDpiMode::Default);
 
         let hidpi_factor = platform.hidpi_factor();
         let font_size = (13.0 * hidpi_factor) as f32;
@@ -35,57 +46,7 @@ impl RenderSystem {
             }),
         }]);
         imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
-
-        let vertices = [
-            Vertex {
-                pos: [-0.5f32, -0.5f32],
-                color: [1.0f32, 0.0f32, 0.0f32],
-            },
-            Vertex {
-                pos: [0.5f32, -0.5f32],
-                color: [0.0f32, 1.0f32, 0.0f32],
-            },
-            Vertex {
-                pos: [0.5f32, 0.5f32],
-                color: [0.0f32, 0.0f32, 1.0f32],
-            },
-            Vertex {
-                pos: [-0.5f32, 0.5f32],
-                color: [1.0f32, 1.0f32, 1.0f32],
-            },
-        ];
-        let indices: [u16; 6] = [0, 1, 2, 2, 3, 0];
-
-        let vertices2 = [
-            Vertex {
-                pos: [-1f32, -1f32],
-                color: [1.0f32, 0.0f32, 0.0f32],
-            },
-            Vertex {
-                pos: [-0.5f32, -1f32],
-                color: [1.0f32, 1.0f32, 1.0f32],
-            },
-            Vertex {
-                pos: [-1f32, -0.5f32],
-                color: [0.0f32, 0.0f32, 1.0f32],
-            },
-        ];
-
-        let mut renderer = sketch::Renderer::new(win.hwnd(), win.hinstance());
-        renderer.add_imgui_renderer(&mut imgui);
-
-        let mut models = Vec::new();
-        models.push(Model::new(renderer.create_mesh(&vertices, Some(&indices))));
-        models.push(Model::new(renderer.create_mesh(&vertices2, None)));
-
-        RenderSystem {
-            renderer,
-            win,
-            imgui,
-            platform,
-            window_focused: true,
-            models,
-        }
+        (imgui, platform)
     }
 }
 
@@ -97,9 +58,10 @@ impl<'a> System<'a> for RenderSystem {
         Write<'a, ControlData>,
         ReadStorage<'a, Player>,
         ReadStorage<'a, Transform>,
+        ReadStorage<'a, Renderable>,
     );
 
-    fn run(&mut self, (events_storage, delta_time, mut control_data, player_storage, transform_storage): Self::SystemData) {
+    fn run(&mut self, (events_storage, delta_time, mut control_data, player_storage, transform_storage, render_storage): Self::SystemData) {
         let mut player_pos = uv::Vec3::default();
         let mut player_dir = uv::Rotor3::default();
 
@@ -160,8 +122,8 @@ impl<'a> System<'a> for RenderSystem {
         let camera_up = camera_vecs[0].cross(camera_vecs[1]);
         self.renderer.update_camera(&camera_pos.into(), &camera_vecs[0].into(), &camera_up.into());
         if self.renderer.begin_frame() {
-            for model in self.models.iter() {
-                model.render(&self.renderer);
+            for renderable in render_storage.join() {
+                self.renderer.render_mesh(&renderable.mesh);
             }
             self.renderer.draw_imgui(draw_data);
             self.renderer.end_frame();

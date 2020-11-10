@@ -48,3 +48,17 @@ impl Drop for Mesh {
         trace!("Dropping Mesh");
     }
 }
+
+pub struct MeshFactory {
+    device: Arc<Device>,
+}
+
+impl MeshFactory {
+    pub fn new(device: Arc<Device>) -> MeshFactory {
+        MeshFactory { device }
+    }
+
+    pub fn create_mesh(&self, vertices: &[Vertex], indices: Option<&[u16]>) -> Mesh {
+        Mesh::new(vertices, indices, &self.device)
+    }
+}

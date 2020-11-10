@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use sketch::models::Mesh;
 use specs::*;
 use winit::event::Event;
 
@@ -31,6 +32,12 @@ pub struct Movement {
 pub struct Transform {
     pub pos: uv::Vec3,
     pub dir: uv::Rotor3,
+}
+
+#[derive(Component)]
+#[storage(VecStorage)]
+pub struct Renderable {
+    pub mesh: Mesh,
 }
 
 #[derive(Debug, Default)]
