@@ -1,5 +1,5 @@
 [package]
-name = "sonata"
+name = "voyager"
 version = "0.0.1"
 authors = ["Caleb Daniels <CJordanDaniels@gmail.com>"]
 edition = "2018"

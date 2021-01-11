@@ -27,7 +27,7 @@ fn main() {
     debug!("Program started");
 
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().with_title("Rusty Sonata").build(&event_loop).unwrap();
+    let window = WindowBuilder::new().with_title("Voyager 0.01").build(&event_loop).unwrap();
 
     let graphic_context = GraphicContext::new(window.hwnd(), window.hinstance());
     let entity_factory = EntityFactory::new(graphic_context.create_mesh_factory());
