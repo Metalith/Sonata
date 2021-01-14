@@ -92,6 +92,7 @@ impl Drop for Buffer {
     fn drop(&mut self) {
         trace!("Dropping Buffer");
         unsafe {
+            self.device.vk().device_wait_idle();
             self.device.vk().destroy_buffer(self.buffer, None);
             self.device.vk().free_memory(self.buffer_memory, None);
         }
