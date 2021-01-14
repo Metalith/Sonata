@@ -59,6 +59,82 @@ impl RenderSystem {
         imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
         (imgui, platform)
     }
+
+    fn begin_frame(&mut self) -> bool {
+        self.graphic_context.sync_objects.wait_fence_current();
+
+        if !self.graphic_context.get_window().is_window_visible() {
+            return false;
+        }
+
+        self.curr_image_index = match self.graphic_context.acquire_next_image() {
+            Err(_) => {
+                self.graphic_context.recreate_swapchain();
+                return false;
+            }
+            Ok(i) => i,
+        };
+
+        self.graphic_context.update_uniforms(self.curr_image_index, &self.camera_pos, &self.camera_dir, &self.camera_up);
+
+        self.graphic_context.sync_objects.wait_fence_image(self.curr_image_index);
+
+        self.graphic_context.begin_command_buffer(self.curr_image_index);
+        true
+    }
+
+    fn end_frame(&mut self) {
+        self.graphic_context.end_command_buffer(self.curr_image_index);
+
+        self.graphic_context.submit_queue(self.curr_image_index);
+        match self.graphic_context.present_queue(self.curr_image_index as u32) {
+            Ok(_) => {}
+            Err(_) => self.graphic_context.recreate_swapchain(),
+        };
+
+        self.graphic_context.sync_objects.increment_frame();
+    }
+
+    fn update_imgui(&mut self, delta_time: &DeltaTime, event_storage: &WinitEventData) {
+        self.imgui.io_mut().update_delta_time(delta_time.delta);
+        for event in &event_storage.events {
+            self.platform.handle_event(self.imgui.io_mut(), &self.window, event);
+        }
+    }
+
+    fn draw_imgui(&mut self, delta_time: &DeltaTime, player_pos: &uv::Vec3, draw_mouse: bool) {
+        let fps = self.imgui.io().framerate;
+        let ui = self.imgui.frame();
+
+        if draw_mouse {
+            ui.set_mouse_cursor(Some(imgui::MouseCursor::Arrow));
+        } else {
+            ui.set_mouse_cursor(None);
+        }
+
+        imgui::Window::new(im_str!("Hello world")).build(&ui, || {
+            ui.text(im_str!("Hello world!"));
+            ui.separator();
+            ui.text(format!("Running for: {:.3} seconds", delta_time.start_time.elapsed().as_secs_f32()));
+            ui.text(format!("Player position: {:.2?}", player_pos));
+            ui.text(format!("Average {:.3} ms/frame ({:.1} FPS)", 1000f32 / fps, fps));
+            let mouse_pos = ui.io().mouse_pos;
+            ui.text(format!("Mouse Position: ({:.1},{:.1})", mouse_pos[0], mouse_pos[1]));
+        });
+
+        imgui::Window::new(im_str!("Controls")).build(&ui, || {
+            ui.text(im_str!("Movement: W A S D SPACE LSHIFT"));
+            ui.text(im_str!("Roll Camera: Q E"));
+            ui.text(im_str!("Mouse Mode Toggle: TAB"));
+        });
+
+        self.platform.prepare_render(&ui, &self.window);
+        let draw_data = ui.render();
+
+        self.imgui_renderer
+            .cmd_draw(&self.graphic_context, *self.graphic_context.get_command_buffer(self.curr_image_index), draw_data)
+            .unwrap();
+    }
 }
 
 impl<'a> System<'a> for RenderSystem {
@@ -81,30 +157,22 @@ impl<'a> System<'a> for RenderSystem {
             player_dir = transform.dir.normalized();
         }
 
-        self.imgui.io_mut().update_delta_time(delta_time.delta);
         for event in &events_storage.events {
-            self.platform.handle_event(self.imgui.io_mut(), &self.window, event);
             if let Event::WindowEvent { window_id: _, event } = event {
                 if let WindowEvent::Focused(focused) = event {
                     self.window_focused = *focused;
                 }
             };
         }
+        self.update_imgui(&delta_time, &events_storage);
 
-        let fps = self.imgui.io().framerate;
-        let ui = self.imgui.frame();
+        let draw_mouse = match control_data.mouse_state {
+            MouseState::Ui => true,
+            MouseState::Fly if self.window_focused => false,
+            _ => true,
+        };
 
-        match control_data.mouse_state {
-            MouseState::Ui => {
-                ui.set_mouse_cursor(Some(imgui::MouseCursor::Arrow));
-                self.window.set_cursor_visible(true);
-            }
-            MouseState::Fly if self.window_focused => {
-                ui.set_mouse_cursor(None);
-                self.window.set_cursor_visible(false);
-            }
-            _ => (),
-        }
+        self.window.set_cursor_visible(draw_mouse);
 
         if control_data.set_mouse {
             let pos = winit::dpi::PhysicalPosition::new(control_data.last_mouse_pos.0, control_data.last_mouse_pos.1);
@@ -112,65 +180,21 @@ impl<'a> System<'a> for RenderSystem {
             control_data.set_mouse = false;
         }
 
-        imgui::Window::new(im_str!("Hello world")).build(&ui, || {
-            ui.text(im_str!("Hello world!"));
-            ui.text(im_str!("This...is...imgui-rs!"));
-            ui.separator();
-            ui.text(format!("Running for: {:.3} seconds", delta_time.start_time.elapsed().as_secs_f32()));
-            ui.text(format!("Player position: {:.2?}", player_pos));
-            ui.text(format!("Average {:.3} ms/frame ({:.1} FPS)", 1000f32 / fps, fps));
-            let mouse_pos = ui.io().mouse_pos;
-            ui.text(format!("Mouse Position: ({:.1},{:.1})", mouse_pos[0], mouse_pos[1]));
-        });
-
-        self.platform.prepare_render(&ui, &self.window);
-
-        let draw_data = ui.render();
-
         self.camera_pos = player_pos;
         let mut camera_vecs = [uv::Vec3::new(0.0, 0.0, 1.0), uv::Vec3::new(1.0, 0.0, 0.0)];
         player_dir.rotate_vecs(&mut camera_vecs);
         self.camera_dir = camera_vecs[0];
         self.camera_up = camera_vecs[0].cross(camera_vecs[1]);
 
-        self.graphic_context.sync_objects.wait_fence_current();
-
-        if !self.graphic_context.get_window().is_window_visible() {
-            return;
-        }
-
-        self.curr_image_index = match self.graphic_context.acquire_next_image() {
-            Err(_) => {
-                self.graphic_context.recreate_swapchain();
-                return;
+        if self.begin_frame() {
+            for renderable in render_storage.join() {
+                renderable
+                    .mesh
+                    .render(self.graphic_context.get_device(), self.graphic_context.get_command_buffer(self.curr_image_index));
             }
-            Ok(i) => i,
-        };
-
-        self.graphic_context.update_uniforms(self.curr_image_index, &self.camera_pos, &self.camera_dir, &self.camera_up);
-
-        self.graphic_context.sync_objects.wait_fence_image(self.curr_image_index);
-
-        self.graphic_context.begin_command_buffer(self.curr_image_index);
-
-        for renderable in render_storage.join() {
-            renderable
-                .mesh
-                .render(self.graphic_context.get_device(), self.graphic_context.get_command_buffer(self.curr_image_index));
+            self.draw_imgui(&delta_time, &player_pos, draw_mouse);
+            self.end_frame();
         }
-        self.imgui_renderer
-            .cmd_draw(&self.graphic_context, *self.graphic_context.get_command_buffer(self.curr_image_index), draw_data)
-            .unwrap();
-
-        self.graphic_context.end_command_buffer(self.curr_image_index);
-
-        self.graphic_context.submit_queue(self.curr_image_index);
-        match self.graphic_context.present_queue(self.curr_image_index as u32) {
-            Ok(_) => {}
-            Err(_) => self.graphic_context.recreate_swapchain(),
-        };
-
-        self.graphic_context.sync_objects.increment_frame();
     }
 }
 
